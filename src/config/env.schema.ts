@@ -10,7 +10,7 @@ export const envSchema = z.object({
   POSTGRES_PASSWORD: z.string().min(1),
   POSTGRES_DB: z.string().min(1),
   APP_EXTERNAL_PORT: z.coerce.number().int().positive().default(5000),
-  DB_EXTERNAL_PORT: z.coerce.number().int().positive().default(5432),
+  DB_EXTERNAL_PORT: z.coerce.number().int().positive().default(5444),
   DOCKER_BUILD_TARGET: z
     .enum(['development', 'production'])
     .default('development'),
