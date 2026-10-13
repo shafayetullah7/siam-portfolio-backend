@@ -5,6 +5,7 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "packageManager": "pnpm@10.24.0",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -17,14 +18,31 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.mts"
+    "test:e2e": "vitest run --config ./vitest.config.e2e.mts",
+    "docker:dev": "docker compose --env-file .env up",
+    "docker:dev:build": "docker compose --env-file .env build --no-cache",
+    "docker:db": "docker compose --env-file .env up -d postgres",
+    "docker:down": "docker compose --env-file .env down",
+    "docker:logs": "docker compose --env-file .env logs -f app",
+    "docker:purge": "docker compose --env-file .env down -v --remove-orphans --rmi local",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:docker": "docker compose --env-file .env exec app pnpm run db:migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:studio:docker": "docker compose --env-file .env exec app pnpm run db:studio"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.0",
+    "@nestjs/config": "^12.0.1",
     "@nestjs/core": "^12.0.0",
+    "@nestjs/drizzle": "^0.0.2",
     "@nestjs/platform-express": "^12.0.0",
+    "@nestjs/swagger": "^12.0.0",
+    "drizzle-orm": "rc",
+    "pg": "^8.16.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -34,8 +52,11 @@
     "@nestjs/testing": "^12.0.0",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.7",
-    "@vitest/coverage-v8": "^4.1.2",
+    "@types/pg": "^8.15.0",
     "@types/supertest": "^6.0.2",
+    "@vitest/coverage-v8": "^4.1.2",
+    "dotenv": "^17.2.0",
+    "drizzle-kit": "rc",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
@@ -49,7 +70,8 @@
     "typescript": "^6.0.0",
     "typescript-eslint": "^8.20.0",
     "vite": "^8.0.0",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "zod-openapi": "^6.0.0"
   },
   "engines": {
     "node": ">=20.19.0"
