@@ -1,5 +1,7 @@
 # SIAM API — NestJS 12, Drizzle ORM, Zod
 
+**Project layout (public/admin API, domain modules):** [architecture.md](./architecture.md).
+
 Team reference aligned with [Nest Drizzle](https://docs.nestjs.com/data/drizzle), [Validation](https://docs.nestjs.com/application/validation), and [Migration guide](https://docs.nestjs.com/migration-guide).
 
 ## Stack baseline
