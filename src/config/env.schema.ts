@@ -14,6 +14,8 @@ export const envSchema = z.object({
   DOCKER_BUILD_TARGET: z
     .enum(['development', 'production'])
     .default('development'),
+  /** Frontend origin for CORS + credentials (Phase 5 admin cookies). */
+  CORS_ORIGIN: z.string().url().default('http://localhost:3000'),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

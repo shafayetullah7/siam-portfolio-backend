@@ -11,7 +11,7 @@ import { HealthService } from './health.service';
 import { healthResponseSchema } from './health.schemas';
 
 @ApiTags('health')
-@Controller('health')
+@Controller('public/health')
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 

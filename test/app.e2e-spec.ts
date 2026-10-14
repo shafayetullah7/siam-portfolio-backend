@@ -19,6 +19,7 @@ describe('Health (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
     await app.init();
   });
 
@@ -26,9 +27,9 @@ describe('Health (e2e)', () => {
     await app.close();
   });
 
-  it('/health (GET)', () => {
+  it('/api/v1/public/health (GET)', () => {
     return request(app.getHttpServer())
-      .get('/health')
+      .get('/api/v1/public/health')
       .expect(200)
       .expect({ status: 'ok', database: 'up' });
   });

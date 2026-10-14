@@ -49,4 +49,8 @@ export class AppConfigService {
   get isProduction(): boolean {
     return this.nodeEnv === 'production';
   }
+
+  get corsOrigin(): AppEnv['CORS_ORIGIN'] {
+    return this.configService.getOrThrow('CORS_ORIGIN');
+  }
 }

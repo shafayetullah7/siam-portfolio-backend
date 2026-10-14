@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
 
+/** Provides health check logic; HTTP route is registered on `PublicApiModule`. */
 @Module({
-  controllers: [HealthController],
   providers: [HealthService],
+  exports: [HealthService],
 })
 export class HealthModule {}
