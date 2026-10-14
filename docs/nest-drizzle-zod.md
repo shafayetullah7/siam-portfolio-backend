@@ -148,6 +148,8 @@ Do **not** put `pgTable` definitions only in Nest feature modules — keep all m
 
 **Single-file OK** — `src/db/schema.ts` remains fine for early/small schemas; migrate to `schema/` when edits get noisy.
 
+**JSONB (SIAM):** Prefer normalized tables. Use `jsonb` (or `text[]`) only for **small bounded** data — e.g. a short list of strings — not for page bodies or nested content. See [project-decisions.md](../../docs/project-decisions.md).
+
 **Foreign keys (DB integrity)** — use `.references()` on the column that stores the FK. This is separate from Drizzle “soft” relations below:
 
 ```typescript

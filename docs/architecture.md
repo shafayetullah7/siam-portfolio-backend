@@ -1,6 +1,15 @@
 # siam-api — Architecture and code organization
 
-Portfolio backend for the [AI/ML portfolio requirements](../../AI_ML_Portfolio_Page_by_Page_Content_UX_Requirements.md). Delivery phases: [portfolio-delivery-phases.md](../../docs/portfolio-delivery-phases.md). Stack details: [nest-drizzle-zod.md](./nest-drizzle-zod.md).
+Portfolio backend for the [AI/ML portfolio requirements](../../AI_ML_Portfolio_Page_by_Page_Content_UX_Requirements.md). Delivery phases: [portfolio-delivery-phases.md](../../docs/portfolio-delivery-phases.md). **Agreed stack choices:** [project-decisions.md](../../docs/project-decisions.md). Stack details: [nest-drizzle-zod.md](./nest-drizzle-zod.md).
+
+## Project decisions (summary)
+
+- **CMS:** `siam-frontend` routes under `/admin` (API still `siam-api` admin prefix).
+- **Files:** Cloudinary via **server-side upload** (Multer → API); see [media.md](./media.md). DB: `media` + `cloudinary_media` + `admin_upload_media`.
+- **Schema:** Relational first; **jsonb** only for small bounded data (e.g. short string arrays). Long content → `text` (markdown) or child section rows. No pgvector / external search engines — SQL filters + optional FTS.
+- **i18n:** not used (English only).
+- **Admin auth:** portfolio-api pattern — [admin-auth.md](./admin-auth.md).
+- Details and open items: [project-decisions.md](../../docs/project-decisions.md).
 
 ## Goals
 
@@ -95,7 +104,7 @@ AdminPublicationsController   →  PublicationsService.create(), update(), publi
 | Admin handlers | Full CRUD; responses may include internal fields |
 | Response schemas | Do not reuse admin Zod response schemas on public routes |
 | Contact | `POST` public only; inbox `GET/PATCH` admin only |
-| Media | Admin upload; public URLs only when asset + parent content are public |
+| Media | Admin multipart → Cloudinary (server); [media.md](./media.md) |
 | Home | `PublicHomeController` → `HomepageService.getPublishedView()` (one aggregate, not N+1 HTTP) |
 
 ### Admin module guard
@@ -205,5 +214,8 @@ Domain modules **export services**; API modules register controllers and guards.
 
 ## Related docs
 
+- [admin-auth.md](./admin-auth.md) — login, registration OTP, cookies, guard
+- [media.md](./media.md) — Cloudinary server-side upload, schema, admin endpoints
+- [project-decisions.md](../../docs/project-decisions.md) — Cloudinary, CMS `/admin`, schema/search choices
 - [nest-drizzle-zod.md](./nest-drizzle-zod.md) — Nest 12, Drizzle, Zod, schema folders
 - [AI_ML_Portfolio_Page_by_Page_Content_UX_Requirements.md](../../AI_ML_Portfolio_Page_by_Page_Content_UX_Requirements.md) — product scope (no API design in that doc)
