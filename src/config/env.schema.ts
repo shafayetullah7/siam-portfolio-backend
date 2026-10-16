@@ -16,6 +16,30 @@ export const envSchema = z.object({
     .default('development'),
   /** Frontend origin for CORS + credentials (Phase 5 admin cookies). */
   CORS_ORIGIN: z.string().url().default('http://localhost:3000'),
+  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  COOKIE_DOMAIN: z.string().optional(),
+  SESSION_MAX_AGE_MS: z.coerce.number().int().positive().default(604_800_000),
+  JWT_ADMIN_ACCESS_SECRET: z
+    .string()
+    .min(32)
+    .default('dev-access-secret-min-32-chars-long!!'),
+  JWT_ADMIN_REFRESH_SECRET: z
+    .string()
+    .min(32)
+    .default('dev-refresh-secret-min-32-chars-long!'),
+  JWT_ADMIN_ACCESS_EXP: z.string().default('1h'),
+  JWT_ADMIN_REFRESH_EXP: z.string().default('7d'),
+  ADMIN_REGISTRATION_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  ADMIN_OTP_RECIPIENT_EMAIL: z
+    .string()
+    .email()
+    .default('admin@example.com'),
+  OTP_EXPIRY_MINUTES: z.coerce.number().int().positive().default(15),
+  OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

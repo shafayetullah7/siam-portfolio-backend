@@ -1,16 +1,16 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { HealthController } from './health.controller';
-import { HealthService } from './health.service';
+import { HealthService } from '../../health/health.service';
+import { PublicHealthController } from './public-health.controller';
 
-describe('HealthController', () => {
-  let controller: HealthController;
+describe('PublicHealthController', () => {
+  let controller: PublicHealthController;
   let check: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     check = vi.fn();
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [HealthController],
+      controllers: [PublicHealthController],
       providers: [
         {
           provide: HealthService,
@@ -19,7 +19,7 @@ describe('HealthController', () => {
       ],
     }).compile();
 
-    controller = module.get(HealthController);
+    controller = module.get(PublicHealthController);
   });
 
   it('returns health when database is up', async () => {

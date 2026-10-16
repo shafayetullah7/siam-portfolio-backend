@@ -7,4 +7,4 @@ export const healthResponseSchema = z
   })
   .meta({ title: 'HealthResponse' });
 
-export type HealthResponse = z.infer<typeof healthResponseSchema>;
+export type HealthResponseDto = z.infer<typeof healthResponseSchema>;

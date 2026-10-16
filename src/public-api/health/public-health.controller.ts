@@ -7,12 +7,12 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { HealthService } from './health.service';
-import { healthResponseSchema } from './health.schemas';
+import { HealthService } from '../../health/health.service';
+import { healthResponseSchema } from './dto/health-response.dto';
 
 @ApiTags('health')
 @Controller('public/health')
-export class HealthController {
+export class PublicHealthController {
   constructor(private readonly healthService: HealthService) {}
 
   @Get()

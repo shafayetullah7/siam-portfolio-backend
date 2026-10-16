@@ -1,14 +1,9 @@
 import { Module } from '@nestjs/common';
-import { HealthController } from '../health/health.controller';
-import { HealthModule } from '../health/health.module';
+import { PublicHealthModule } from './health/public-health.module';
+import { PublicSiteModule } from './site/public-site.module';
+import { PublicSitePagesModule } from './site-pages/public-site-pages.module';
 
-/**
- * Public portfolio API (`/api/v1/public/*`).
- * Register public controllers here; import feature modules for providers.
- * @see docs/architecture.md
- */
 @Module({
-  imports: [HealthModule],
-  controllers: [HealthController],
+  imports: [PublicHealthModule, PublicSitePagesModule, PublicSiteModule],
 })
 export class PublicApiModule {}

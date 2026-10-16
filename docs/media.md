@@ -49,10 +49,10 @@ Attach to content (publication, project, profile, …) in **domain services**:
 |--------|-------------------------|
 | `CloudinaryModule` | `src/libs/cloudinary/` — provider, service, `buildCloudinaryUploadOptions()` |
 | `MediaModule` | `src/domain/media/` — repository, `AdminMediaService` |
-| HTTP | `src/admin-api/controllers/admin-media.controller.ts` — **admin only** |
-| No | `MediaController` for public/users (byte-forge has seller uploads; SIAM does not) |
+| HTTP | `src/admin-api/media/` — `admin-media.controller.ts`, facade `admin-media.service.ts`, `dto/` — **admin only** |
+| No | Public upload controller (byte-forge has seller uploads; SIAM does not) |
 
-`MediaModule` imports `CloudinaryModule`. `AdminApiModule` imports `MediaModule` and registers `AdminMediaController`.
+`MediaModule` imports `CloudinaryModule`. `AdminApiModule` imports `AdminMediaModule` (`admin-api/media/`), which imports `MediaModule`.
 
 Env (`env.schema` + `AppConfigService`): `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
 

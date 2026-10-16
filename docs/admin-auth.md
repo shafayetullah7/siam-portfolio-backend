@@ -136,24 +136,37 @@ Files: `src/db/schema/auth/` (SIAM layout).
 
 ## Nest module layout (siam-api)
 
+Auth HTTP lives under **`admin-api/auth/`** (feature module). Persistence helpers may stay in `domain/auth/` (repositories) or co-locate with specialists — facades call domain/repos, not controllers.
+
 ```
 src/
-  libs/hashing/              # Argon2id hash + verify (e.g. `@node-rs/argon2`)
-  libs/cookie/               # CookieService (portfolio parity)
-  domain/auth/               # or admin-api/auth/
-    admin-auth.module.ts
-    admin-auth.service.ts
-    admin-registration.service.ts
+  libs/hashing/                 # Argon2id hash + verify (e.g. `@node-rs/argon2`)
+  libs/cookie/                  # CookieService (portfolio parity)
+  domain/auth/                  # optional: AdminRepository, PendingAdminRepository, shared types
     admin.repository.ts
     pending-admin.repository.ts
-    schemas/admin-auth.schemas.ts   # Zod: login, register, verify
   common/guards/
     admin-auth.guard.ts
   admin-api/
-    controllers/admin-auth.controller.ts
+    auth/
+      admin-auth.module.ts
+      admin-auth.controller.ts
+      admin-auth.service.ts           # facade — only entry from controller
+      dto/
+        admin-login.dto.ts            # one file per body/query/params contract
+        admin-register.dto.ts
+        admin-verify-registration.dto.ts
+        …
+      services/
+        admin-login.service.ts
+        admin-registration.service.ts
+        admin-session.service.ts      # refresh, logout, session rows, cookies
+        admin-password.service.ts     # forgot / reset / change (optional split)
 ```
 
-`AdminApiModule` imports `AdminAuthModule`. Other admin controllers use `@UseGuards(AdminAuthGuard)` globally or per-controller.
+- **Controller** → **`AdminAuthService` (facade)** → `services/*` (+ repositories / `EmailService` / `JwtService`).
+- **DTOs:** Zod 4 + `@Body({ schema })`; `export type X = z.infer<typeof xSchema>` in the same `dto/*.dto.ts` file — not `class-validator` classes.
+- `AdminApiModule` imports `AdminAuthModule` (and other `admin-api/<feature>` modules). Other admin features use `AdminAuthGuard` at module or route level.
 
 Dependencies: `@nestjs/jwt`, `@nestjs/throttler`, `cookie-parser`, **`@node-rs/argon2`** (or `argon2`) for passwords.
 

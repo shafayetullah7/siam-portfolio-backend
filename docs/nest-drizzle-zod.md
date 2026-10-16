@@ -27,10 +27,11 @@ Team reference aligned with [Nest Drizzle](https://docs.nestjs.com/data/drizzle)
 1. **New HTTP APIs:** Zod + Standard Schema — not `class-validator` / class DTOs unless legacy.
 2. **Global pipe** in `main.ts`: `StandardSchemaValidationPipe`.
 3. **Route schemas:** `@Body({ schema })`, `@Query({ schema })`, `@Param('id', { schema })`.
-4. **Types:** `type Dto = z.infer<typeof schema>` — one source of truth.
-5. **Env:** `ConfigModule.forRoot({ validationSchema: envSchema })` — fail fast on boot.
-6. **Feature code:** inject `AppConfigService` getters — not raw `ConfigService.get('PORT')`.
-7. **Responses (when needed):** Zod + `StandardSchemaSerializerInterceptor` + `@SerializeOptions({ schema })`.
+4. **Types:** `type Dto = z.infer<typeof schema>` — one source of truth (same file as the schema).
+5. **API contracts:** under `public-api/<feature>/dto/` and `admin-api/<feature>/dto/` — **one `*.dto.ts` file per body, query, or params schema** (optional separate files for serialized responses). See [architecture.md](./architecture.md).
+6. **Env:** `ConfigModule.forRoot({ validationSchema: envSchema })` — fail fast on boot.
+7. **Feature code:** inject `AppConfigService` getters — not raw `ConfigService.get('PORT')`.
+8. **Responses (when needed):** Zod + `StandardSchemaSerializerInterceptor` + `@SerializeOptions({ schema })`.
 
 ### Swagger
 
@@ -672,7 +673,7 @@ const db = {
 |--------|------|
 | API input/output | Zod + Standard Schema |
 | Tables / columns | Drizzle `pgTable` |
-| Optional bridge | `drizzle-orm/zod` from tables — not a substitute for request DTOs |
+| Optional bridge | `drizzle-orm/zod` from tables — not a substitute for HTTP `dto/` files |
 
 Keep request schemas and table definitions separate unless you deliberately derive one from the other.
 

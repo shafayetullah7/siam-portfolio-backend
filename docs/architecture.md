@@ -16,7 +16,7 @@ Portfolio backend for the [AI/ML portfolio requirements](../../AI_ML_Portfolio_P
 1. **One domain layer** — each content area (publications, projects, …) has a single service/repository; public and admin are two HTTP surfaces.
 2. **Public never sees drafts** — `published` (and scheduled-after-now) filtering lives in services used by public controllers, not copy-pasted `where` in controllers.
 3. **Admin is guarded by default** — `AdminApiModule` applies auth to all routes unless explicitly marked public.
-4. **Zod at the HTTP edge** — `*.schemas.ts` per feature; shared shapes in domain `schemas/`.
+4. **Zod at the HTTP edge** — each public/admin **feature module** has a `dto/` folder: **one file per API contract** (body, query, params, optional response); types via `z.infer`. Not `class-validator` class DTOs.
 5. **Drizzle schema mirrors domains** — `src/db/schema/<domain>/`, not page ids (P01, P02).
 
 ## URL surfaces
@@ -69,13 +69,22 @@ src/
     revisions/            # draft, publish, schedule, history (optional shared)
 
   public-api/
-    public-api.module.ts
-    controllers/          # or one subfolder per resource
+    public-api.module.ts    # imports feature modules only (no flat controller list)
+    <feature>/              # e.g. site/, site-pages/, publications/
+      public-<feature>.module.ts
+      public-<feature>.controller.ts
+      public-<feature>.service.ts   # facade — controller calls only this
+      dto/                          # one Zod schema + z.infer type per file
+      services/                     # optional: single-job helpers used by facade
 
   admin-api/
-    admin-api.module.ts
-    controllers/
-    auth/                 # login, refresh (HTTP only here)
+    admin-api.module.ts     # imports feature modules only
+    <feature>/              # e.g. auth/, site-pages/, media/
+      admin-<feature>.module.ts
+      admin-<feature>.controller.ts
+      admin-<feature>.service.ts    # facade — controller calls only this
+      dto/
+      services/                     # one class per file (login, session, …)
 
   health/
   swagger/
@@ -87,13 +96,23 @@ src/
 
 ### Recommended pattern
 
-- **Domain module** exports `XxxService` (+ optional `XxxRepository`). No HTTP.
-- **Controllers** live under `public-api/` and `admin-api/` (or `domain/xxx/controllers/` imported only by one API module).
-- **Naming:** `public-publications.controller.ts`, `admin-publications.controller.ts`.
+- **Domain module** exports `XxxService` (+ optional `XxxRepository`). No HTTP, no route DTOs.
+- **API feature module** (under `public-api/<feature>/` or `admin-api/<feature>/`) owns the controller, `dto/`, facade service, and optional `services/` specialists.
+- **`PublicApiModule` / `AdminApiModule`** only import feature modules — not a flat `controllers/` array.
+- **Naming:** `public-site-pages.controller.ts`, `admin-site-pages.controller.ts` inside each feature folder.
 
 ```text
-PublicPublicationsController  →  PublicationsService.findPublished(), findPublishedBySlug()
-AdminPublicationsController   →  PublicationsService.create(), update(), publish(), import(), …
+PublicSitePagesController
+  → PublicSitePagesService (facade)
+  → SitePagesService.findPublished(), findPublishedBySlug()   # domain
+
+AdminSitePagesController
+  → AdminSitePagesService (facade)
+  → SitePagesService.create(), update(), publish(), …         # domain
+
+AdminAuthController
+  → AdminAuthService (facade)
+  → AdminLoginService / AdminSessionService / …               # admin-api/auth/services/
 ```
 
 ### Rules
@@ -102,7 +121,7 @@ AdminPublicationsController   →  PublicationsService.create(), update(), publi
 |------|--------|
 | Public handlers | Only call `*Published*`, `getPublic*`, or repository methods that enforce publish status |
 | Admin handlers | Full CRUD; responses may include internal fields |
-| Response schemas | Do not reuse admin Zod response schemas on public routes |
+| Response DTOs | Do not reuse admin Zod response DTOs on public routes; separate files under each feature’s `dto/` |
 | Contact | `POST` public only; inbox `GET/PATCH` admin only |
 | Media | Admin multipart → Cloudinary (server); [media.md](./media.md) |
 | Home | `PublicHomeController` → `HomepageService.getPublishedView()` (one aggregate, not N+1 HTTP) |
@@ -110,6 +129,41 @@ AdminPublicationsController   →  PublicationsService.create(), update(), publi
 ### Admin module guard
 
 Apply `JwtAuthGuard` (or session guard) at `AdminApiModule` level (`APP_GUARD` scoped to module or `configure(consumer)`). Use `@Public()` on auth login/refresh routes only.
+
+## API feature modules (public and admin)
+
+Same layout on **both** surfaces. HTTP stays in `public-api/` and `admin-api/`; persistence and publish rules stay in `domain/`.
+
+```
+public-api/site-pages/
+  public-site-pages.module.ts
+  public-site-pages.controller.ts
+  public-site-pages.service.ts      # thin facade → domain SitePagesService
+  dto/
+    site-page-by-slug-params.dto.ts # e.g. slugParamSchema + SlugParam
+
+admin-api/auth/
+  admin-auth.module.ts
+  admin-auth.controller.ts
+  admin-auth.service.ts             # thin facade — delegates only
+  dto/
+    admin-login.dto.ts              # adminLoginBodySchema + AdminLoginBody
+    admin-register.dto.ts
+  services/
+    admin-login.service.ts
+    admin-registration.service.ts
+    admin-session.service.ts
+```
+
+| Layer | Responsibility |
+|--------|----------------|
+| **Controller** | Routes, `@Body({ schema })` / `@Query({ schema })`, cookies/status, `apiSuccess()` |
+| **`dto/*.dto.ts`** | One Zod schema (+ `export type … = z.infer<typeof …>`) per contract; reuse in Swagger via `standardSchemaConverter` |
+| **Facade `*.service.ts`** | Maps HTTP to domain/specialists; no fat SQL unless unavoidable |
+| **`services/*.ts`** (optional) | One class, one job — auth login, session DB, registration OTP, etc. |
+| **Domain `domain/*`** | Drizzle, transactions, `findPublished*`, publish rules — imported by facades |
+
+Shared list/pagination Zod shapes may live in `common/pagination/`; do not put route DTOs in `domain/`.
 
 ## Domain modules (from product requirements)
 
@@ -141,17 +195,31 @@ domain/publications/
   publications.service.ts
   publications.repository.ts      # Drizzle queries
   publications-import.service.ts  # admin-only; DOI/BibTeX
-  schemas/
-    publication.schemas.ts        # Zod: list query, create, update, public vs admin responses
   publications.service.spec.ts
+
+public-api/publications/
+  public-publications.module.ts
+  public-publications.controller.ts
+  public-publications.service.ts
+  dto/
+    publication-list-query.dto.ts
+    publication-slug-params.dto.ts
+
+admin-api/publications/
+  admin-publications.module.ts
+  admin-publications.controller.ts
+  admin-publications.service.ts
+  dto/
+    create-publication.dto.ts
+    update-publication.dto.ts
 ```
 
 | Artifact | Convention |
 |----------|------------|
-| Zod | `*.schemas.ts`; `z.infer<typeof schema>` for types |
-| Service | Transactions, publish rules, orchestration |
+| HTTP Zod | `public-api/.../dto/*.dto.ts` and `admin-api/.../dto/*.dto.ts`; `z.infer<typeof schema>` for types |
+| Domain service | Transactions, publish rules, orchestration |
+| API facade | `public-*.service.ts` / `admin-*.service.ts` — controller’s only service dependency |
 | Repository | `@InjectDrizzle()`; no HTTP imports |
-| Public controller | `public-api/...` or `public-*.controller.ts` |
 | Tests | Unit beside file; e2e under `test/e2e/public/`, `test/e2e/admin/` |
 
 Domain code imports tables from `src/db/schema`, never from controllers.
@@ -194,18 +262,18 @@ User-facing entities that appear on the public site: **`slug`**, **`publishStatu
 ## OpenAPI
 
 - Swagger tags: `Public — Publications`, `Admin — Publications`.
-- Reuse Zod schemas with `standardSchemaConverter` (see `src/swagger/setup-swagger.ts`).
+- Reuse route Zod schemas from each feature’s `dto/` with `standardSchemaConverter` (see `src/swagger/setup-swagger.ts`).
 
 ## Module dependency graph
 
 ```text
-PublicApiModule  →  domain modules (read paths)
-AdminApiModule   →  domain modules + AuthModule
-Domain modules   →  Drizzle (global), each other only when necessary
-AppModule        →  Config, Drizzle, Health, PublicApiModule, AdminApiModule
+PublicApiModule       →  public-api/<feature> modules  →  domain modules (read paths)
+AdminApiModule        →  admin-api/<feature> modules   →  domain modules + libs (auth, media, …)
+Domain modules        →  Drizzle (global), each other only when necessary
+AppModule             →  Config, Drizzle, Health, PublicApiModule, AdminApiModule
 ```
 
-Domain modules **export services**; API modules register controllers and guards.
+Domain modules **export services**. Feature modules under `public-api/` and `admin-api/` register controllers, facades, `dto/`, and guards (admin).
 
 ## Legacy / cleanup
 

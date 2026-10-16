@@ -2,8 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { HealthResponse } from './health.schemas';
-
 @Injectable()
 export class HealthService {
   constructor(
@@ -11,7 +9,7 @@ export class HealthService {
     private readonly db: NodePgDatabase,
   ) {}
 
-  async check(): Promise<HealthResponse> {
+  async check(): Promise<{ status: 'ok'; database: 'up' | 'down' }> {
     try {
       await this.db.execute(sql`SELECT 1`);
       return { status: 'ok', database: 'up' };

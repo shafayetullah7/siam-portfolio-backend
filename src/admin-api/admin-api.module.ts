@@ -1,12 +1,17 @@
 import { Module } from '@nestjs/common';
+import { AdminAuthModule } from './auth/admin-auth.module';
+import { AdminDashboardModule } from './dashboard/admin-dashboard.module';
+import { AdminMediaModule } from './media/admin-media.module';
+import { AdminSiteModule } from './site/admin-site.module';
+import { AdminSitePagesModule } from './site-pages/admin-site-pages.module';
 
-/**
- * Owner CMS API (`/api/v1/admin/*`).
- * Apply JWT/session guard at module level when auth is implemented.
- * @see docs/architecture.md
- */
 @Module({
-  imports: [],
-  controllers: [],
+  imports: [
+    AdminAuthModule,
+    AdminSitePagesModule,
+    AdminSiteModule,
+    AdminDashboardModule,
+    AdminMediaModule,
+  ],
 })
 export class AdminApiModule {}
