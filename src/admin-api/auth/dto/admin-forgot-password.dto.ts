@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const adminForgotPasswordBodySchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
 });
 
 export type AdminForgotPasswordBody = z.infer<

@@ -15,8 +15,8 @@ export const envSchema = z.object({
     .enum(['development', 'production'])
     .default('development'),
   /** Frontend origin for CORS + credentials (Phase 5 admin cookies). */
-  CORS_ORIGIN: z.string().url().default('http://localhost:3000'),
-  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  CORS_ORIGIN: z.url().default('http://localhost:3000'),
+  FRONTEND_URL: z.url().default('http://localhost:3000'),
   COOKIE_DOMAIN: z.string().optional(),
   SESSION_MAX_AGE_MS: z.coerce.number().int().positive().default(604_800_000),
   JWT_ADMIN_ACCESS_SECRET: z

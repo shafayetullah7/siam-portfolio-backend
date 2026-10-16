@@ -6,7 +6,7 @@ export const adminProfileSchema = z
     firstName: z.string(),
     lastName: z.string(),
     userName: z.string(),
-    email: z.string().email(),
+    email: z.email(),
     mfaEnabled: z.boolean(),
   })
   .meta({ title: 'AdminProfile' });
