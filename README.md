@@ -51,7 +51,7 @@ See [.env.example](./.env.example). Key variables:
 
 ## Frontend
 
-Run [siam-frontend](../siam-frontend) with Vite proxy to this API (`VITE_API_BASE=/api/v1`).
+Run [siam-frontend](../siam-frontend) with `VITE_API_BASE=http://localhost:5000/api/v1` and `CORS_ORIGIN=http://localhost:3000`.
 
 ## Troubleshooting
 
