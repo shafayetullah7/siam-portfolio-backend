@@ -49,7 +49,7 @@ describe('Admin registration (e2e)', () => {
       lastName: 'Admin',
       userName: `user_${Date.now().toString(36)}`,
       email,
-      password: 'password12',
+      password: 'Testpass1.',
     };
 
     await request(app.getHttpServer())
@@ -72,5 +72,18 @@ describe('Admin registration (e2e)', () => {
     expect(joined).toContain('adminAccessToken');
     expect(joined).toContain('adminRefreshToken');
     expect(verifyRes.body.data?.email).toBe(email);
+  });
+
+  it('rejects weak register password', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/admin/auth/register')
+      .send({
+        firstName: 'Test',
+        lastName: 'Admin',
+        userName: `user_${Date.now().toString(36)}`,
+        email: unique(),
+        password: 'password12',
+      })
+      .expect(400);
   });
 });

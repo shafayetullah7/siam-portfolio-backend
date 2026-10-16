@@ -28,7 +28,7 @@ Base: `api/v1/admin/auth` (portfolio uses `@Controller({ path: 'admin/auth', ver
 | `POST` | `mfa/disable` | `AdminAuthGuard` | — | Disable MFA (require password or TOTP) |
 
 **Login body:** `{ email, password }` — when MFA enabled for admin, second step: `{ totp }` or dedicated `POST login/mfa` after partial auth (design at implement time).  
-**Register body:** `{ firstName, lastName, userName, email, password }` — `userName` `[a-zA-Z0-9_-]{3,50}`, password min 8.  
+**Register body:** `{ firstName, lastName, userName, email, password }` — `userName` `[a-zA-Z0-9_-]{3,50}`; password **8–128** chars with at least one letter, one digit, one special (set includes `.`), letters/digits/specials only (no spaces). Same policy for **reset** and **change-password** `newPassword`. **Login** password: 8–128 only (no composition). See `admin-password-policy.ts`.  
 **Verify body:** `{ otp }` — six digits.
 
 ---

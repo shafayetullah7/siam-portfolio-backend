@@ -84,7 +84,7 @@ describe.sequential('Admin password reset (e2e)', () => {
       });
 
     const email = uniqueEmail();
-    await createAdminViaRegistration(email, 'password12');
+    await createAdminViaRegistration(email, 'Testpass1.');
 
     const known = await request(app.getHttpServer())
       .post('/api/v1/admin/auth/forgot-password')
@@ -100,8 +100,8 @@ describe.sequential('Admin password reset (e2e)', () => {
 
   it('forgot → reset → login; reused token fails', async () => {
     const email = uniqueEmail();
-    const oldPassword = 'password12';
-    const newPassword = 'newpassword99';
+    const oldPassword = 'Testpass1.';
+    const newPassword = 'Newpass9.';
     await createAdminViaRegistration(email, oldPassword);
 
     await request(app.getHttpServer())

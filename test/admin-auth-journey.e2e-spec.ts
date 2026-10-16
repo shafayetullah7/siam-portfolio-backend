@@ -116,7 +116,7 @@ describe.sequential('Admin auth journey (e2e)', () => {
 
   it('register → verify → guarded GET → logout → guarded 401', async () => {
     const email = uniqueEmail();
-    let { jar } = await registerAndVerify(email, 'password12');
+    let { jar } = await registerAndVerify(email, 'Testpass1.');
 
     await request(app.getHttpServer())
       .get('/api/v1/admin/dashboard')
@@ -141,7 +141,7 @@ describe.sequential('Admin auth journey (e2e)', () => {
 
   it('register → verify → login → check → logout → guarded 401', async () => {
     const email = uniqueEmail();
-    const password = 'password12';
+    const password = 'Testpass1.';
     const { jar: verifyJar } = await registerAndVerify(email, password);
 
     await request(app.getHttpServer())
