@@ -40,6 +40,11 @@ export const envSchema = z.object({
   OTP_EXPIRY_MINUTES: z.coerce.number().int().positive().default(15),
   OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
+  /** `console` logs mail to the API logger; `resend` sends via Resend when API key is set. */
+  MAIL_PROVIDER: z.enum(['console', 'resend']).default('console'),
+  RESEND_API_KEY: z.string().default('re_placeholder_replace_with_real_key'),
+  /** Resend `from` — use a verified domain in production (e.g. `SIAM <noreply@yourdomain.com>`). */
+  MAIL_FROM: z.string().min(3).default('SIAM Admin <onboarding@resend.dev>'),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

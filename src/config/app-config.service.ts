@@ -101,4 +101,16 @@ export class AppConfigService {
   get otpResendCooldownSeconds(): AppEnv['OTP_RESEND_COOLDOWN_SECONDS'] {
     return this.configService.getOrThrow('OTP_RESEND_COOLDOWN_SECONDS');
   }
+
+  get mailProvider(): AppEnv['MAIL_PROVIDER'] {
+    return this.configService.getOrThrow('MAIL_PROVIDER');
+  }
+
+  get resendApiKey(): AppEnv['RESEND_API_KEY'] {
+    return this.configService.getOrThrow('RESEND_API_KEY');
+  }
+
+  get mailFrom(): AppEnv['MAIL_FROM'] {
+    return this.configService.getOrThrow('MAIL_FROM');
+  }
 }

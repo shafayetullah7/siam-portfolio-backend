@@ -140,7 +140,7 @@ Controlled by **`ADMIN_REGISTRATION_ENABLED`** (`true` | `false`). When `false`,
 5. **`resend-registration-otp`:** Cooldown `OTP_RESEND_COOLDOWN_SECONDS` if OTP still active.
 6. **`registration-status`:** `{ registrationEnabled, hasPending, otpExpiresAt?, locked?, nextResendAt? }` for UI.
 
-Env: `OTP_EXPIRY_MINUTES`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN_SECONDS`, mail provider (`MAIL_PROVIDER`, Gmail or console for dev).
+Env: `OTP_EXPIRY_MINUTES`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN_SECONDS`, and mail — see [email.md](./email.md) (`MAIL_PROVIDER`, `RESEND_API_KEY`, `MAIL_FROM`, `ADMIN_OTP_RECIPIENT_EMAIL`).
 
 After first admin exists, set **`ADMIN_REGISTRATION_ENABLED=false`** in production (portfolio pattern).
 
@@ -238,7 +238,7 @@ Portfolio reference — `portfolio-api/src/_config/env.schema.ts`:
 - Argon2 params (document in env or constants): e.g. `ARGON2_MEMORY_KIB`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM` — no `SALT_ROUNDS` / bcrypt
 - `ADMIN_REGISTRATION_ENABLED`, `ADMIN_OTP_RECIPIENT_EMAIL`
 - `OTP_EXPIRY_MINUTES`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN_SECONDS`
-- Mail: `MAIL_PROVIDER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM_*`
+- Mail (Resend): `MAIL_PROVIDER` (`console` | `resend`), `RESEND_API_KEY`, `MAIL_FROM` — see [email.md](./email.md)
 
 ---
 

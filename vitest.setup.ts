@@ -22,3 +22,8 @@ process.env.ADMIN_OTP_RECIPIENT_EMAIL =
   process.env.ADMIN_OTP_RECIPIENT_EMAIL ?? 'owner@example.com';
 process.env.CORS_ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
 process.env.FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+process.env.MAIL_PROVIDER = process.env.MAIL_PROVIDER ?? 'console';
+process.env.RESEND_API_KEY =
+  process.env.RESEND_API_KEY ?? 're_placeholder_replace_with_real_key';
+process.env.MAIL_FROM =
+  process.env.MAIL_FROM ?? 'SIAM Admin <onboarding@resend.dev>';

@@ -2,6 +2,7 @@ import { Logger, StandardSchemaValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppConfigService } from './config/app-config.service';
+import { validateMailConfigForBoot } from './config/validate-mail-config';
 import { AppModule } from './app.module';
 import { ThrottlerExceptionFilter } from './common/filters/throttler-exception.filter';
 import { setupSwagger } from './swagger/setup-swagger';
@@ -14,6 +15,7 @@ async function bootstrap() {
   app.useGlobalFilters(new ThrottlerExceptionFilter());
 
   const appConfig = app.get(AppConfigService);
+  validateMailConfigForBoot(appConfig);
   app.enableCors({
     origin: appConfig.corsOrigin,
     credentials: true,
