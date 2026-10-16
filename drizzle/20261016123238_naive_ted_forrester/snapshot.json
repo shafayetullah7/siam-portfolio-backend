@@ -1,11 +1,22 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "5f34f07b-a8c8-4c76-bff3-fdaa7315cbdb",
+  "id": "9097a602-fb74-4bf1-aae5-ca443b1fe97d",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
   "ddl": [
+    {
+      "values": [
+        "draft",
+        "published",
+        "scheduled",
+        "archived"
+      ],
+      "name": "publish_status",
+      "entityType": "enums",
+      "schema": "public"
+    },
     {
       "isRlsEnabled": false,
       "name": "admin_local_auth",

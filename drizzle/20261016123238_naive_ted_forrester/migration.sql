@@ -1,3 +1,4 @@
+CREATE TYPE "publish_status" AS ENUM('draft', 'published', 'scheduled', 'archived');--> statement-breakpoint
 CREATE TABLE "admin_local_auth" (
 	"admin_id" uuid PRIMARY KEY,
 	"email" varchar(255) NOT NULL UNIQUE,

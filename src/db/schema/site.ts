@@ -1,5 +1,12 @@
-import { boolean, integer, pgTable, text, uuid, varchar } from 'drizzle-orm/pg-core';
-import { timestampsColumns } from './columns/timestamps';
+import {
+  boolean,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 
 export const siteSettings = pgTable('site_settings', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -9,7 +16,13 @@ export const siteSettings = pgTable('site_settings', {
   }),
   footerText: text('footer_text'),
   faviconUrl: varchar('favicon_url', { length: 500 }),
-  ...timestampsColumns,
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const navItems = pgTable('nav_items', {
@@ -18,5 +31,11 @@ export const navItems = pgTable('nav_items', {
   path: varchar('path', { length: 300 }).notNull(),
   sortOrder: integer('sort_order').notNull().default(0),
   visible: boolean('visible').notNull().default(true),
-  ...timestampsColumns,
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
