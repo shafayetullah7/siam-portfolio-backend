@@ -53,6 +53,10 @@ export class AdminAuthService {
     return this.registration.registrationStatus();
   }
 
+  resendRegistrationOtp() {
+    return this.registration.resendRegistrationOtp();
+  }
+
   forgotPassword(email: string) {
     return this.password.forgotPassword(email);
   }

@@ -29,7 +29,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:docker": "docker compose --env-file .env exec app pnpm run db:migrate",
     "db:studio": "drizzle-kit studio",
-    "db:studio:docker": "docker compose --env-file .env exec app pnpm run db:studio"
+    "db:studio:docker": "docker compose --env-file .env exec app pnpm run db:studio",
+    "seed:ci-admin": "ts-node --transpile-only scripts/seed-ci-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.0",

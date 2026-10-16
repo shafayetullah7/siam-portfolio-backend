@@ -8,5 +8,7 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     include: ['**/*.e2e-spec.ts'],
     exclude: ['**/node_modules/**', '**/dist/**'],
+    fileParallelism: false,
+    maxWorkers: 1,
   },
 });

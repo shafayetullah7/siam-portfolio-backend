@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
 } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
@@ -108,17 +110,70 @@ export class AdminRegistrationService {
     return this.repo.toProfile(admin, auth);
   }
 
-  async registrationStatus() {
+  private computeNextResendAt(otpSentAt: Date, locked: boolean): string | undefined {
+    if (locked) return undefined;
+    const availableAt =
+      otpSentAt.getTime() + this.config.otpResendCooldownSeconds * 1000;
+    if (Date.now() >= availableAt) return undefined;
+    return new Date(availableAt).toISOString();
+  }
+
+  async resendRegistrationOtp() {
+    if (!this.config.adminRegistrationEnabled) {
+      throw new ForbiddenException('Registration disabled');
+    }
     const [pending] = await this.db
       .select()
       .from(pendingAdmins)
       .orderBy(desc(pendingAdmins.createdAt))
       .limit(1);
-    if (!pending) return { hasPending: false };
+    if (!pending) throw new BadRequestException('No pending registration');
+    if (pending.otpAttempts >= this.config.otpMaxAttempts) {
+      throw new ForbiddenException('OTP attempts exceeded');
+    }
+    if (pending.otpExpiresAt < new Date()) {
+      throw new BadRequestException('OTP expired');
+    }
+    const cooldownMs = this.config.otpResendCooldownSeconds * 1000;
+    const elapsed = Date.now() - pending.otpSentAt.getTime();
+    if (elapsed < cooldownMs) {
+      const waitSec = Math.ceil((cooldownMs - elapsed) / 1000);
+      throw new HttpException(
+        `Resend available in ${waitSec} seconds`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = await this.hashing.hashOtp(otp);
+    const sentAt = new Date();
+    await this.db
+      .update(pendingAdmins)
+      .set({ otpHash, otpSentAt: sentAt })
+      .where(eq(pendingAdmins.id, pending.id));
+    await this.email.sendAdminRegistrationOtp(
+      this.config.adminOtpRecipientEmail,
+      otp,
+    );
+    return { otpExpiresAt: pending.otpExpiresAt.toISOString() };
+  }
+
+  async registrationStatus() {
+    const registrationEnabled = this.config.adminRegistrationEnabled;
+    const [pending] = await this.db
+      .select()
+      .from(pendingAdmins)
+      .orderBy(desc(pendingAdmins.createdAt))
+      .limit(1);
+    if (!pending) {
+      return { registrationEnabled, hasPending: false };
+    }
+    const locked = pending.otpAttempts >= this.config.otpMaxAttempts;
     return {
+      registrationEnabled,
       hasPending: true,
       otpExpiresAt: pending.otpExpiresAt.toISOString(),
-      locked: pending.otpAttempts >= this.config.otpMaxAttempts,
+      locked,
+      nextResendAt: this.computeNextResendAt(pending.otpSentAt, locked),
     };
   }
 }
