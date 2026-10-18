@@ -144,6 +144,8 @@ Env: `OTP_EXPIRY_MINUTES`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN_SECONDS`, an
 
 After first admin exists, set **`ADMIN_REGISTRATION_ENABLED=false`** in production (portfolio pattern).
 
+**Local / CI dev account:** `pnpm db:seed` (or `pnpm db:seed:docker` with compose `app` running) inserts a verified admin from [`src/db/seed/dev-admin.ts`](../src/db/seed/dev-admin.ts). Idempotent; credentials are in source, not `.env`.
+
 ---
 
 ## Account recovery and security (A01 — SIAM additions)
