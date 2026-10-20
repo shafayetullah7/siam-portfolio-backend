@@ -20,8 +20,8 @@ process.env.ADMIN_REGISTRATION_ENABLED =
   process.env.ADMIN_REGISTRATION_ENABLED ?? 'true';
 process.env.ADMIN_OTP_RECIPIENT_EMAIL =
   process.env.ADMIN_OTP_RECIPIENT_EMAIL ?? 'owner@example.com';
-process.env.CORS_ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
-process.env.FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+process.env.CORS_ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:5001';
+process.env.FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5001';
 process.env.MAIL_PROVIDER = process.env.MAIL_PROVIDER ?? 'console';
 process.env.RESEND_API_KEY =
   process.env.RESEND_API_KEY ?? 're_placeholder_replace_with_real_key';

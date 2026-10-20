@@ -10,6 +10,7 @@ import { AdminApiModule } from './admin-api/admin-api.module';
 import { PublicApiModule } from './public-api/public-api.module';
 import { CookieModule } from './libs/cookie/cookie.module';
 import { HashingModule } from './libs/hashing/hashing.module';
+import { CloudinaryModule } from './libs/cloudinary/cloudinary.module';
 import { MailModule } from './libs/mail/mail.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import * as schema from './db/schema';
@@ -23,6 +24,7 @@ import * as schema from './db/schema';
     ScheduleModule.forRoot(),
     AppConfigModule,
     MailModule,
+    CloudinaryModule,
     HashingModule,
     CookieModule,
     DrizzleModule.forRootAsync({

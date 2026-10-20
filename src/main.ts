@@ -2,6 +2,7 @@ import { Logger, StandardSchemaValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppConfigService } from './config/app-config.service';
+import { validateCloudinaryConfigForBoot } from './config/validate-cloudinary-config';
 import { validateMailConfigForBoot } from './config/validate-mail-config';
 import { AppModule } from './app.module';
 import { ThrottlerExceptionFilter } from './common/filters/throttler-exception.filter';
@@ -16,6 +17,7 @@ async function bootstrap() {
 
   const appConfig = app.get(AppConfigService);
   validateMailConfigForBoot(appConfig);
+  validateCloudinaryConfigForBoot(appConfig);
   app.enableCors({
     origin: appConfig.corsOrigin,
     credentials: true,

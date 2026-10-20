@@ -36,7 +36,7 @@ pnpm run docker:dev
 See [.env.example](./.env.example). Key variables:
 
 - `DATABASE_URL` — host port must match `DB_EXTERNAL_PORT` when using `docker:db`
-- `CORS_ORIGIN` — SolidStart dev origin (default `http://localhost:3000`)
+- `CORS_ORIGIN` — SolidStart dev origin (default `http://localhost:5001`)
 
 ## Scripts
 
@@ -51,7 +51,7 @@ See [.env.example](./.env.example). Key variables:
 
 ## Frontend
 
-Run [siam-frontend](../siam-frontend) with `VITE_API_BASE=http://localhost:5000/api/v1` and `CORS_ORIGIN=http://localhost:3000`.
+Run [siam-frontend](../siam-frontend) with `VITE_API_BASE=http://localhost:5000/api/v1` and `CORS_ORIGIN=http://localhost:5001`.
 
 ## Troubleshooting
 

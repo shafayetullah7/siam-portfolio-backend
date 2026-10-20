@@ -15,8 +15,8 @@ export const envSchema = z.object({
     .enum(['development', 'production'])
     .default('development'),
   /** Frontend origin for CORS + credentials (Phase 5 admin cookies). */
-  CORS_ORIGIN: z.url().default('http://localhost:3000'),
-  FRONTEND_URL: z.url().default('http://localhost:3000'),
+  CORS_ORIGIN: z.url().default('http://localhost:5001'),
+  FRONTEND_URL: z.url().default('http://localhost:5001'),
   COOKIE_DOMAIN: z.string().optional(),
   SESSION_MAX_AGE_MS: z.coerce.number().int().positive().default(604_800_000),
   JWT_ADMIN_ACCESS_SECRET: z
@@ -45,6 +45,12 @@ export const envSchema = z.object({
   RESEND_API_KEY: z.string().default('re_placeholder_replace_with_real_key'),
   /** Resend `from` — use a verified domain in production (e.g. `SIAM <noreply@yourdomain.com>`). */
   MAIL_FROM: z.string().min(3).default('SIAM Admin <onboarding@resend.dev>'),
+  CLOUDINARY_CLOUD_NAME: z.string().min(1).default('placeholder_cloud_name'),
+  CLOUDINARY_API_KEY: z.string().min(1).default('placeholder_api_key'),
+  CLOUDINARY_API_SECRET: z
+    .string()
+    .min(1)
+    .default('placeholder_api_secret'),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
