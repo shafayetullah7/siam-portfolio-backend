@@ -48,6 +48,7 @@ See [.env.example](./.env.example). Key variables:
 | `pnpm run lint` | ESLint |
 | `pnpm run db:generate` | Drizzle migrations |
 | `pnpm run db:migrate` | Apply migrations |
+| `pnpm run db:seed` | Dev admin (`dev-admin.ts`) + draft research themes (`research-themes.catalog.ts`, sync with frontend catalog; skipped when `NODE_ENV=production`) |
 
 ## Frontend
 

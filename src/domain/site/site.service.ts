@@ -9,6 +9,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { media } from '../../db/schema/media';
 import { navItems, siteSettings } from '../../db/schema/site';
 import { MEDIA_IMAGE_MIME_TYPES } from '../media/media-upload.constants';
+import { ResearchService } from '../research/research.service';
 import { SitePagesService } from '../site-pages/site-pages.service';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class SiteService {
     @InjectDrizzle()
     private readonly db: NodePgDatabase,
     private readonly sitePages: SitePagesService,
+    private readonly research: ResearchService,
   ) {}
 
   async getOrCreateSettings() {
@@ -33,6 +35,7 @@ export class SiteService {
     siteName?: string;
     defaultMetaDescription?: string | null;
     footerText?: string | null;
+    researchHubIntro?: string | null;
     faviconUrl?: string | null;
     faviconMediaId?: string | null;
   }) {
@@ -44,6 +47,10 @@ export class SiteService {
       patch.defaultMetaDescription = input.defaultMetaDescription;
     }
     if (input.footerText !== undefined) patch.footerText = input.footerText;
+    if (input.researchHubIntro !== undefined) {
+      const trimmed = input.researchHubIntro?.trim() ?? '';
+      patch.researchHubIntro = trimmed === '' ? null : trimmed;
+    }
 
     // faviconMediaId wins over manual faviconUrl when both are sent.
     if (input.faviconMediaId !== undefined) {
@@ -125,14 +132,26 @@ export class SiteService {
   async getPublicSite() {
     const settings = await this.getOrCreateSettings();
     const nav = (await this.listNav()).filter((n) => n.visible);
-    const pageSlugs = await this.sitePages.listPublishedSlugs();
+    const [pageSlugs, researchSlugs] = await Promise.all([
+      this.sitePages.listPublishedSlugs(),
+      this.research.listPublishedSlugs(),
+    ]);
+    const researchPaths = [
+      '/research',
+      ...researchSlugs.map((s) => `/research/${s}`),
+    ];
     return {
       siteName: settings.siteName,
       defaultMetaDescription: settings.defaultMetaDescription,
       footerText: settings.footerText,
       faviconUrl: settings.faviconUrl,
       nav,
-      sitemapPaths: ['/', '/about', ...pageSlugs.map((s) => `/pages/${s}`)],
+      sitemapPaths: [
+        ...researchPaths,
+        '/',
+        '/about',
+        ...pageSlugs.map((s) => `/pages/${s}`),
+      ],
     };
   }
 }

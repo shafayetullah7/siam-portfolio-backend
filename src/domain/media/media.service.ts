@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -101,6 +102,20 @@ export class MediaService {
       .limit(1);
     if (!row) {
       throw new NotFoundException('Media not found');
+    }
+    return row;
+  }
+
+  async assertImageMediaId(id: string): Promise<MediaRow> {
+    const row = await this.findById(id);
+    const mime = row.mimeType;
+    if (
+      !mime ||
+      !(MEDIA_IMAGE_MIME_TYPES as readonly string[]).includes(mime)
+    ) {
+      throw new BadRequestException(
+        'Cover must be an image from the media library',
+      );
     }
     return row;
   }

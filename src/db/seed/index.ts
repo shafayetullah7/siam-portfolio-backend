@@ -2,6 +2,7 @@ import { config } from 'dotenv';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { seedDevAdmin } from './dev-admin';
+import { seedResearchThemes } from './research-themes';
 
 // Host `.env` uses localhost + DB_EXTERNAL_PORT; Docker Compose sets in-network URL.
 // Never let mounted `.env` override an existing DATABASE_URL (e.g. postgres:5432).
@@ -20,6 +21,9 @@ async function main() {
 
   try {
     await seedDevAdmin(db);
+    if (process.env.NODE_ENV !== 'production') {
+      await seedResearchThemes(db);
+    }
   } finally {
     await pool.end();
   }

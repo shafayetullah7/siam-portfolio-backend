@@ -16,6 +16,7 @@ export const siteSettings = pgTable('site_settings', {
     length: 320,
   }),
   footerText: text('footer_text'),
+  researchHubIntro: text('research_hub_intro'),
   faviconUrl: varchar('favicon_url', { length: 500 }),
   faviconMediaId: uuid('favicon_media_id').references(() => media.id, {
     onDelete: 'set null',

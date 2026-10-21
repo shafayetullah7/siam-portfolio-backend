@@ -2,5 +2,8 @@ export * from './auth';
 export * from './content-revisions';
 export * from './media';
 export * from './profile-home';
+export * from './projects';
+export * from './publications';
+export * from './research';
 export * from './site';
 export * from './site-pages';

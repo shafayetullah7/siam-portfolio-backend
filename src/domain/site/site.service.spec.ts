@@ -29,8 +29,43 @@ const imageMedia = {
 
 function createSiteService(db: unknown) {
   const sitePages = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
-  return new SiteService(db as never, sitePages as never);
+  const research = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
+  return new SiteService(db as never, sitePages as never, research as never);
 }
+
+describe('SiteService.getPublicSite', () => {
+  it('includes research hub and published theme slugs in sitemapPaths', async () => {
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          limit: vi.fn().mockResolvedValue([settingsRow]),
+        })),
+      })),
+    };
+    const sitePages = {
+      listPublishedSlugs: vi.fn().mockResolvedValue(['about-page']),
+    };
+    const research = {
+      listPublishedSlugs: vi.fn().mockResolvedValue(['alpha', 'beta']),
+    };
+    const service = new SiteService(
+      db as never,
+      sitePages as never,
+      research as never,
+    );
+    vi.spyOn(service, 'listNav').mockResolvedValue([]);
+
+    const site = await service.getPublicSite();
+    expect(site.sitemapPaths).toEqual([
+      '/research',
+      '/research/alpha',
+      '/research/beta',
+      '/',
+      '/about',
+      '/pages/about-page',
+    ]);
+  });
+});
 
 describe('SiteService.updateSettings', () => {
   it('syncs faviconUrl when faviconMediaId is set', async () => {

@@ -12,6 +12,7 @@ import { CookieModule } from './libs/cookie/cookie.module';
 import { HashingModule } from './libs/hashing/hashing.module';
 import { CloudinaryModule } from './libs/cloudinary/cloudinary.module';
 import { MailModule } from './libs/mail/mail.module';
+import { ResearchModule } from './domain/research/research.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import * as schema from './db/schema';
 
@@ -37,6 +38,7 @@ import * as schema from './db/schema';
       }),
     }),
     SchedulingModule,
+    ResearchModule,
     PublicApiModule,
     AdminApiModule,
   ],

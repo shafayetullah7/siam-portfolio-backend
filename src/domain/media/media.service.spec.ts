@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Express } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CloudinaryService } from '../../libs/cloudinary/cloudinary.service';
@@ -196,6 +200,40 @@ describe('MediaService', () => {
       await expect(
         svc.updateMetadata('missing', { alt: 'x' }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('assertImageMediaId', () => {
+    it('returns row for image mime', async () => {
+      const db = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn().mockResolvedValue([mediaRow]),
+            })),
+          })),
+        })),
+      } as never;
+      const svc = new MediaService(db, cloudinary);
+      await expect(svc.assertImageMediaId('id-1')).resolves.toEqual(mediaRow);
+    });
+
+    it('rejects non-image mime', async () => {
+      const db = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn().mockResolvedValue([
+                { ...mediaRow, mimeType: 'application/pdf' },
+              ]),
+            })),
+          })),
+        })),
+      } as never;
+      const svc = new MediaService(db, cloudinary);
+      await expect(svc.assertImageMediaId('id-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 });
