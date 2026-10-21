@@ -2,6 +2,10 @@ import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AdminAuthGuard } from '../../common/guards/admin-auth.guard';
 import { AdminSiteService } from './admin-site.service';
+import {
+  updateSiteSettingsBodySchema,
+  type UpdateSiteSettingsBody,
+} from './dto/update-site-settings.dto';
 
 @ApiTags('admin-site')
 @Controller('admin/site')
@@ -15,7 +19,9 @@ export class AdminSiteController {
   }
 
   @Patch('settings')
-  async patchSettings(@Body() body: Record<string, unknown>) {
+  async patchSettings(
+    @Body({ schema: updateSiteSettingsBodySchema }) body: UpdateSiteSettingsBody,
+  ) {
     return await this.adminSite.updateSettings(body);
   }
 

@@ -4,6 +4,7 @@ import type { media } from '../../db/schema/media';
 export type MediaListQuery = {
   q?: string;
   mime?: string;
+  imagesOnly?: boolean;
   page: number;
   limit: number;
 };

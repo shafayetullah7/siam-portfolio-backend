@@ -1,0 +1,2 @@
+ALTER TABLE "site_settings" ADD COLUMN "favicon_media_id" uuid;--> statement-breakpoint
+ALTER TABLE "site_settings" ADD CONSTRAINT "site_settings_favicon_media_id_media_id_fkey" FOREIGN KEY ("favicon_media_id") REFERENCES "media"("id") ON DELETE SET NULL;

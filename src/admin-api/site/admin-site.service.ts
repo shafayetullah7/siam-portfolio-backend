@@ -13,8 +13,8 @@ export class AdminSiteService {
     return this.site.getOrCreateSettings();
   }
 
-  updateSettings(body: Record<string, unknown>) {
-    return this.site.updateSettings(body as never);
+  updateSettings(body: Parameters<SiteService['updateSettings']>[0]) {
+    return this.site.updateSettings(body);
   }
 
   listNav() {

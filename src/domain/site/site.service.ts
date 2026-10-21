@@ -1,8 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { asc, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { media } from '../../db/schema/media';
 import { navItems, siteSettings } from '../../db/schema/site';
+import { MEDIA_IMAGE_MIME_TYPES } from '../media/media-upload.constants';
 import { SitePagesService } from '../site-pages/site-pages.service';
 
 @Injectable()
@@ -28,11 +34,52 @@ export class SiteService {
     defaultMetaDescription?: string | null;
     footerText?: string | null;
     faviconUrl?: string | null;
+    faviconMediaId?: string | null;
   }) {
     const current = await this.getOrCreateSettings();
+    const patch: Partial<typeof siteSettings.$inferInsert> = {};
+
+    if (input.siteName !== undefined) patch.siteName = input.siteName;
+    if (input.defaultMetaDescription !== undefined) {
+      patch.defaultMetaDescription = input.defaultMetaDescription;
+    }
+    if (input.footerText !== undefined) patch.footerText = input.footerText;
+
+    // faviconMediaId wins over manual faviconUrl when both are sent.
+    if (input.faviconMediaId !== undefined) {
+      if (input.faviconMediaId === null) {
+        patch.faviconMediaId = null;
+        if (input.faviconUrl !== undefined) {
+          patch.faviconUrl = input.faviconUrl;
+        }
+      } else {
+        const [mediaRow] = await this.db
+          .select()
+          .from(media)
+          .where(eq(media.id, input.faviconMediaId))
+          .limit(1);
+        if (!mediaRow) {
+          throw new NotFoundException('Media not found');
+        }
+        const mime = mediaRow.mimeType;
+        if (
+          !mime ||
+          !(MEDIA_IMAGE_MIME_TYPES as readonly string[]).includes(mime)
+        ) {
+          throw new BadRequestException(
+            'Favicon must be an image from the media library',
+          );
+        }
+        patch.faviconMediaId = input.faviconMediaId;
+        patch.faviconUrl = mediaRow.url;
+      }
+    } else if (input.faviconUrl !== undefined) {
+      patch.faviconUrl = input.faviconUrl;
+    }
+
     const [row] = await this.db
       .update(siteSettings)
-      .set(input)
+      .set(patch)
       .where(eq(siteSettings.id, current.id))
       .returning();
     return row;

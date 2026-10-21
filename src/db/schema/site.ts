@@ -7,6 +7,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { media } from './media';
 
 export const siteSettings = pgTable('site_settings', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -16,6 +17,9 @@ export const siteSettings = pgTable('site_settings', {
   }),
   footerText: text('footer_text'),
   faviconUrl: varchar('favicon_url', { length: 500 }),
+  faviconMediaId: uuid('favicon_media_id').references(() => media.id, {
+    onDelete: 'set null',
+  }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

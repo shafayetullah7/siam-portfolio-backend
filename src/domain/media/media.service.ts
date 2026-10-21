@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, count, desc, eq, ilike, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, inArray, type SQL } from 'drizzle-orm';
 import type { Express } from 'express';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
@@ -20,6 +20,7 @@ import {
 } from '../../db/schema/media';
 import { buildPaginatedResponse } from '../../common/pagination/paginated-response';
 import type { MediaListQuery, MediaListResult, MediaRow } from './media-list.types';
+import { MEDIA_IMAGE_MIME_TYPES } from './media-upload.constants';
 import { validateUploadFile } from './validate-upload-file';
 
 export type CreateMediaPlaceholderInput = {
@@ -62,6 +63,11 @@ export class MediaService {
     }
     if (query.mime) {
       conditions.push(eq(media.mimeType, query.mime));
+    }
+    if (query.imagesOnly) {
+      conditions.push(
+        inArray(media.mimeType, [...MEDIA_IMAGE_MIME_TYPES]),
+      );
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const offset = (query.page - 1) * query.limit;
