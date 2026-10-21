@@ -38,6 +38,79 @@ export type ResearchThemeRevisionSnapshot = {
   archivedAt: string | null;
 };
 
+export const RESEARCH_THEME_REVISION_KEYS: (keyof ResearchThemeRevisionSnapshot)[] =
+  [
+    'slug',
+    'title',
+    'summary',
+    'themeStatus',
+    'problem',
+    'significance',
+    'objectives',
+    'approach',
+    'findings',
+    'limitations',
+    'futureWork',
+    'tags',
+    'linkLabel',
+    'coverMediaId',
+    'sortOrder',
+    'featuredOnHome',
+    'seoTitle',
+    'seoDescription',
+    'collaborators',
+    'acknowledgments',
+    'funding',
+    'resources',
+    'publicationIds',
+    'projectIds',
+    'publishStatus',
+    'publishedAt',
+    'scheduledAt',
+    'archivedAt',
+  ];
+
+function revisionFieldEqual(
+  key: keyof ResearchThemeRevisionSnapshot,
+  a: unknown,
+  b: unknown,
+): boolean {
+  if (a === b) return true;
+  if (a == null && b == null) return true;
+  if (
+    key === 'tags' ||
+    key === 'publicationIds' ||
+    key === 'projectIds' ||
+    key === 'collaborators' ||
+    key === 'resources'
+  ) {
+    return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  }
+  return a === b;
+}
+
+/** Fields that changed in this save (values are the state after the save). */
+export function researchThemeRevisionDelta(
+  before: ResearchThemeRevisionSnapshot | undefined,
+  after: ResearchThemeRevisionSnapshot,
+): Partial<ResearchThemeRevisionSnapshot> {
+  const delta: Partial<ResearchThemeRevisionSnapshot> = {};
+  for (const key of RESEARCH_THEME_REVISION_KEYS) {
+    const next = after[key];
+    const prev = before?.[key];
+    if (!revisionFieldEqual(key, prev, next)) {
+      (delta as Record<string, unknown>)[key] = next;
+    }
+  }
+  return delta;
+}
+
+export function isEmptyResearchThemeRevisionDelta(
+  delta: Partial<ResearchThemeRevisionSnapshot>,
+): boolean {
+  return Object.keys(delta).length === 0;
+}
+
 export function researchThemeToSnapshot(
   row: ResearchThemeRow,
   resources: ResearchThemeResourceInput[] = [],

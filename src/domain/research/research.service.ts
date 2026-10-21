@@ -28,6 +28,8 @@ import {
 import { assertPublishable } from './research-publish.rules';
 import {
   RESEARCH_THEME_ENTITY_TYPE,
+  isEmptyResearchThemeRevisionDelta,
+  researchThemeRevisionDelta,
   researchThemeToSnapshot,
   snapshotToResearchThemePatch,
   type ResearchThemeRevisionSnapshot,
@@ -302,7 +304,10 @@ export class ResearchService {
     return published.filter((row) => row.featuredOnHome).slice(0, limit);
   }
 
-  private async recordRevision(id: string, row: ResearchThemeRow) {
+  private async buildThemeSnapshot(
+    id: string,
+    row: ResearchThemeRow,
+  ): Promise<ResearchThemeRevisionSnapshot> {
     const resourceRows = await this.listResources(id);
     const resources: ResearchThemeResourceInput[] = resourceRows.map((r) => ({
       label: r.label,
@@ -314,11 +319,18 @@ export class ResearchService {
       this.listPublicationIdsForTheme(id),
       this.listProjectIdsForTheme(id),
     ]);
-    await this.revisions.append(
-      RESEARCH_THEME_ENTITY_TYPE,
-      id,
-      researchThemeToSnapshot(row, resources, publicationIds, projectIds),
-    );
+    return researchThemeToSnapshot(row, resources, publicationIds, projectIds);
+  }
+
+  private async recordRevisionDelta(
+    id: string,
+    before: ResearchThemeRevisionSnapshot | undefined,
+    afterRow: ResearchThemeRow,
+  ): Promise<void> {
+    const after = await this.buildThemeSnapshot(id, afterRow);
+    const delta = researchThemeRevisionDelta(before, after);
+    if (isEmptyResearchThemeRevisionDelta(delta)) return;
+    await this.revisions.append(RESEARCH_THEME_ENTITY_TYPE, id, delta);
   }
 
   async create(input: CreateResearchThemeInput): Promise<ResearchThemeRow> {
@@ -359,7 +371,7 @@ export class ResearchService {
       if (input.resources != null) {
         await this.replaceResources(row.id, input.resources);
       }
-      await this.recordRevision(row.id, row);
+      await this.recordRevisionDelta(row.id, undefined, row);
       return row;
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -385,7 +397,7 @@ export class ResearchService {
     id: string,
     input: UpdateResearchThemeInput,
   ): Promise<ResearchThemeRow> {
-    await this.findByIdAdmin(id);
+    const beforeRow = await this.findByIdAdmin(id);
     const patch: Partial<typeof researchThemes.$inferInsert> = {};
 
     if (input.slug !== undefined) patch.slug = input.slug.trim();
@@ -433,7 +445,8 @@ export class ResearchService {
       if (input.resources !== undefined) {
         await this.replaceResources(id, input.resources ?? []);
       }
-      await this.recordRevision(id, row);
+      const beforeSnap = await this.buildThemeSnapshot(id, beforeRow);
+      await this.recordRevisionDelta(id, beforeSnap, row);
       return row;
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -580,6 +593,7 @@ export class ResearchService {
     options: { confirmWarnings?: boolean } = {},
   ): Promise<ResearchThemeRow> {
     const row = await this.findByIdAdmin(id);
+    const beforeSnap = await this.buildThemeSnapshot(id, row);
     const coverAlt = await this.resolveCoverAlt(row.coverMediaId);
     const [unpublishedPublicationTitles, unpublishedProjectTitles] =
       await Promise.all([
@@ -618,11 +632,13 @@ export class ResearchService {
       })
       .where(eq(researchThemes.id, id))
       .returning();
-    await this.recordRevision(id, updated);
+    await this.recordRevisionDelta(id, beforeSnap, updated);
     return updated;
   }
 
   async unpublish(id: string): Promise<ResearchThemeRow> {
+    const beforeRow = await this.findByIdAdmin(id);
+    const beforeSnap = await this.buildThemeSnapshot(id, beforeRow);
     const [updated] = await this.db
       .update(researchThemes)
       .set({
@@ -634,7 +650,7 @@ export class ResearchService {
     if (!updated) {
       throw new NotFoundException('Research theme not found');
     }
-    await this.recordRevision(id, updated);
+    await this.recordRevisionDelta(id, beforeSnap, updated);
     return updated;
   }
 
@@ -642,6 +658,8 @@ export class ResearchService {
     if (scheduledAt.getTime() <= Date.now()) {
       throw new BadRequestException('scheduledAt must be in the future');
     }
+    const beforeRow = await this.findByIdAdmin(id);
+    const beforeSnap = await this.buildThemeSnapshot(id, beforeRow);
     const [updated] = await this.db
       .update(researchThemes)
       .set({
@@ -654,11 +672,13 @@ export class ResearchService {
     if (!updated) {
       throw new NotFoundException('Research theme not found');
     }
-    await this.recordRevision(id, updated);
+    await this.recordRevisionDelta(id, beforeSnap, updated);
     return updated;
   }
 
   async archive(id: string): Promise<ResearchThemeRow> {
+    const beforeRow = await this.findByIdAdmin(id);
+    const beforeSnap = await this.buildThemeSnapshot(id, beforeRow);
     const [updated] = await this.db
       .update(researchThemes)
       .set({
@@ -670,7 +690,7 @@ export class ResearchService {
     if (!updated) {
       throw new NotFoundException('Research theme not found');
     }
-    await this.recordRevision(id, updated);
+    await this.recordRevisionDelta(id, beforeSnap, updated);
     return updated;
   }
 
@@ -685,6 +705,7 @@ export class ResearchService {
     if (!revision || revision.entityId !== theme.id) {
       throw new NotFoundException('Revision not found');
     }
+    const beforeSnap = await this.buildThemeSnapshot(id, theme);
     const snap = revision.snapshot as Partial<ResearchThemeRevisionSnapshot>;
     const patch = snapshotToResearchThemePatch(snap, theme);
     try {
@@ -702,7 +723,7 @@ export class ResearchService {
       if (snap.projectIds !== undefined) {
         await this.replaceProjects(id, snap.projectIds ?? []);
       }
-      await this.recordRevision(id, updated);
+      await this.recordRevisionDelta(id, beforeSnap, updated);
       return updated;
     } catch (error) {
       if (error instanceof BadRequestException) {
