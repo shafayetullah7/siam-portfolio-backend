@@ -5,7 +5,8 @@ import { AppConfigService } from './config/app-config.service';
 import { validateCloudinaryConfigForBoot } from './config/validate-cloudinary-config';
 import { validateMailConfigForBoot } from './config/validate-mail-config';
 import { AppModule } from './app.module';
-import { ThrottlerExceptionFilter } from './common/filters/throttler-exception.filter';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ApiEnvelopeInterceptor } from './common/interceptors/api-envelope.interceptor';
 import { setupSwagger } from './swagger/setup-swagger';
 
 async function bootstrap() {
@@ -13,7 +14,8 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
   app.use(cookieParser());
   app.useGlobalPipes(new StandardSchemaValidationPipe());
-  app.useGlobalFilters(new ThrottlerExceptionFilter());
+  app.useGlobalInterceptors(new ApiEnvelopeInterceptor());
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   const appConfig = app.get(AppConfigService);
   validateMailConfigForBoot(appConfig);

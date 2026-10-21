@@ -10,6 +10,7 @@ services:
       - '${APP_EXTERNAL_PORT:-5000}:${PORT:-5000}'
     volumes:
       - .:/app
+      # Rebuild the image after package.json changes (pnpm install runs at build time).
       - /app/node_modules
     depends_on:
       postgres:

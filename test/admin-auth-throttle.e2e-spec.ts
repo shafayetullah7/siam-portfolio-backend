@@ -13,7 +13,7 @@ import {
   ADMIN_AUTH_THROTTLE_MODULE_DEFAULT,
 } from '../src/admin-api/auth/admin-auth-throttle.constants';
 import { AdminAuthService } from '../src/admin-api/auth/admin-auth.service';
-import { ThrottlerExceptionFilter } from '../src/common/filters/throttler-exception.filter';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { AdminAuthGuard } from '../src/common/guards/admin-auth.guard';
 
 describe('Admin auth throttle (e2e)', () => {
@@ -49,7 +49,7 @@ describe('Admin auth throttle (e2e)', () => {
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(new StandardSchemaValidationPipe());
-    app.useGlobalFilters(new ThrottlerExceptionFilter());
+    app.useGlobalFilters(new HttpExceptionFilter());
     await app.init();
   });
 

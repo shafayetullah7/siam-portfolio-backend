@@ -35,7 +35,7 @@ Base: `api/v1/admin/auth` (portfolio uses `@Controller({ path: 'admin/auth', ver
 
 ## Implementation status (siam-api ↔ frontend)
 
-Audited against `src/admin-api/auth/admin-auth.controller.ts` and `siam-frontend` `adminAuthApi`. Limits are defined in `admin-auth-throttle.constants.ts` and applied via `@nestjs/throttler` (AA2). **429** responses use `{ success: false, message, statusCode: 429 }` (`ThrottlerExceptionFilter`).
+Audited against `src/admin-api/auth/admin-auth.controller.ts` and `siam-frontend` `adminAuthApi`. Limits are defined in `admin-auth-throttle.constants.ts` and applied via `@nestjs/throttler` (AA2). **429** responses use `{ success: false, message, statusCode: 429 }` (`HttpExceptionFilter`).
 
 | Method | Path | Auth / CSRF | Request DTO | Success `data` | Status | Throttle actual | Frontend |
 |--------|------|-------------|-------------|----------------|--------|-----------------|----------|

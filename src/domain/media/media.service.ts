@@ -1,5 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
+import { and, count, desc, eq, ilike, type SQL } from 'drizzle-orm';
 import type { Express } from 'express';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
@@ -13,6 +18,8 @@ import {
   cloudinaryMedia,
   media,
 } from '../../db/schema/media';
+import { buildPaginatedResponse } from '../../common/pagination/paginated-response';
+import type { MediaListQuery, MediaListResult, MediaRow } from './media-list.types';
 import { validateUploadFile } from './validate-upload-file';
 
 export type CreateMediaPlaceholderInput = {
@@ -35,7 +42,11 @@ type PersistMediaInput = {
   alt?: string;
 };
 
-type MediaRow = typeof media.$inferSelect;
+export type UpdateMediaMetadataInput = {
+  alt?: string | null;
+  caption?: string | null;
+  license?: string | null;
+};
 
 @Injectable()
 export class MediaService {
@@ -44,8 +55,97 @@ export class MediaService {
     private readonly cloudinary: CloudinaryService,
   ) {}
 
-  async list() {
-    return this.db.select().from(media);
+  async listFiltered(query: MediaListQuery): Promise<MediaListResult> {
+    const conditions: SQL[] = [];
+    if (query.q) {
+      conditions.push(ilike(media.fileName, `%${query.q}%`));
+    }
+    if (query.mime) {
+      conditions.push(eq(media.mimeType, query.mime));
+    }
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const offset = (query.page - 1) * query.limit;
+
+    const [countRow] = await this.db
+      .select({ total: count() })
+      .from(media)
+      .where(where);
+
+    const items = await this.db
+      .select()
+      .from(media)
+      .where(where)
+      .orderBy(desc(media.createdAt))
+      .limit(query.limit)
+      .offset(offset);
+
+    const total = Number(countRow?.total ?? 0);
+    return buildPaginatedResponse(items, {
+      page: query.page,
+      limit: query.limit,
+      total,
+    });
+  }
+
+  async findById(id: string): Promise<MediaRow> {
+    const [row] = await this.db
+      .select()
+      .from(media)
+      .where(eq(media.id, id))
+      .limit(1);
+    if (!row) {
+      throw new NotFoundException('Media not found');
+    }
+    return row;
+  }
+
+  async updateMetadata(
+    id: string,
+    patch: UpdateMediaMetadataInput,
+  ): Promise<MediaRow> {
+    await this.findById(id);
+    const [updated] = await this.db
+      .update(media)
+      .set({
+        ...(patch.alt !== undefined ? { alt: patch.alt } : {}),
+        ...(patch.caption !== undefined ? { caption: patch.caption } : {}),
+        ...(patch.license !== undefined ? { license: patch.license } : {}),
+      })
+      .where(eq(media.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteById(id: string): Promise<void> {
+    const row = await this.findById(id);
+    if (row.usesCount > 0) {
+      throw new ForbiddenException(
+        'This file is in use and cannot be deleted.',
+      );
+    }
+
+    const [cloudRow] = await this.db
+      .select({ publicKey: cloudinaryMedia.publicKey })
+      .from(cloudinaryMedia)
+      .where(eq(cloudinaryMedia.mediaId, id))
+      .limit(1);
+
+    if (!cloudRow) {
+      throw new NotFoundException('Media not found');
+    }
+
+    await this.db.delete(media).where(eq(media.id, id));
+    await this.cloudinary.deleteFile(cloudRow.publicKey);
+  }
+
+  /** P6 — increment when content references media. */
+  async incrementUsage(_mediaId: string, _count = 1): Promise<void> {
+    // stub
+  }
+
+  /** P6 — decrement when content detaches media. */
+  async decrementUsage(_mediaId: string, _count = 1): Promise<void> {
+    // stub
   }
 
   async createPlaceholder(input: CreateMediaPlaceholderInput) {

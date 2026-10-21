@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
+  Patch,
   Post,
-  SerializeOptions,
-  StandardSchemaSerializerInterceptor,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -13,7 +15,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Express } from 'express';
 import { memoryStorage } from 'multer';
-import { apiSuccess } from '../../common/http/api-response';
 import { CurrentAdmin } from '../../common/decorators/current-admin.decorator';
 import { AdminAuthGuard } from '../../common/guards/admin-auth.guard';
 import {
@@ -25,7 +26,15 @@ import {
   createMediaPlaceholderBodySchema,
   type CreateMediaPlaceholderBody,
 } from './dto/create-media-placeholder.dto';
-import { mediaAdminResponseSchema } from './dto/media-admin-response.dto';
+import { mediaIdParamSchema } from './dto/media-id-params.dto';
+import {
+  mediaListQuerySchema,
+  type MediaListQuery,
+} from './dto/media-list-query.dto';
+import {
+  updateMediaMetadataBodySchema,
+  type UpdateMediaMetadataBody,
+} from './dto/update-media-metadata.dto';
 
 @ApiTags('admin-media')
 @Controller('admin/media')
@@ -34,20 +43,41 @@ export class AdminMediaController {
   constructor(private readonly media: AdminMediaService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List media library' })
-  async list() {
-    return apiSuccess(await this.media.list());
+  @ApiOperation({ summary: 'List media library (filtered, paginated)' })
+  async list(@Query({ schema: mediaListQuerySchema }) query: MediaListQuery) {
+    return await this.media.list(query);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get media by id' })
+  async getById(@Param('id', { schema: mediaIdParamSchema }) id: string) {
+    return await this.media.getById(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update media metadata (alt, caption, license)' })
+  async updateMetadata(
+    @Param('id', { schema: mediaIdParamSchema }) id: string,
+    @Body({ schema: updateMediaMetadataBodySchema })
+    body: UpdateMediaMetadataBody,
+  ) {
+    return await this.media.updateMetadata(id, body);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete media (blocked when in use)' })
+  async delete(@Param('id', { schema: mediaIdParamSchema }) id: string) {
+    await this.media.delete(id);
+    return null;
   }
 
   @Post('placeholder')
   @ApiOperation({ summary: 'Create placeholder media row (dev/seeds)' })
-  @UseInterceptors(StandardSchemaSerializerInterceptor)
-  @SerializeOptions({ schema: mediaAdminResponseSchema })
   async createPlaceholder(
     @Body({ schema: createMediaPlaceholderBodySchema })
     body: CreateMediaPlaceholderBody,
   ) {
-    return apiSuccess(await this.media.createPlaceholder(body));
+    return await this.media.createPlaceholder(body);
   }
 
   @Post('upload')
@@ -65,14 +95,12 @@ export class AdminMediaController {
       storage: memoryStorage(),
       limits: { fileSize: MEDIA_UPLOAD_MAX_BYTES },
     }),
-    StandardSchemaSerializerInterceptor,
   )
-  @SerializeOptions({ schema: mediaAdminResponseSchema })
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @CurrentAdmin() admin: { sub: string },
   ) {
-    return apiSuccess(await this.media.uploadFile(admin.sub, file, false));
+    return await this.media.uploadFile(admin.sub, file, false);
   }
 
   @Post('upload/image')
@@ -90,13 +118,11 @@ export class AdminMediaController {
       storage: memoryStorage(),
       limits: { fileSize: MEDIA_IMAGE_UPLOAD_MAX_BYTES },
     }),
-    StandardSchemaSerializerInterceptor,
   )
-  @SerializeOptions({ schema: mediaAdminResponseSchema })
   async uploadImage(
     @UploadedFile() file: Express.Multer.File,
     @CurrentAdmin() admin: { sub: string },
   ) {
-    return apiSuccess(await this.media.uploadFile(admin.sub, file, true));
+    return await this.media.uploadFile(admin.sub, file, true);
   }
 }

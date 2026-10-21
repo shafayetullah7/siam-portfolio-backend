@@ -1,6 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { apiSuccess } from '../../common/http/api-response';
 import { PublicSiteService } from './public-site.service';
 
 @ApiTags('public-site')
@@ -11,16 +10,16 @@ export class PublicSiteController {
   @Get('site')
   @ApiOperation({ summary: 'Site settings and navigation' })
   async getSite() {
-    return apiSuccess(await this.publicSite.getSite());
+    return await this.publicSite.getSite();
   }
 
   @Get('home')
   async getHome() {
-    return apiSuccess(await this.publicSite.getHome());
+    return await this.publicSite.getHome();
   }
 
   @Get('about')
   async getAbout() {
-    return apiSuccess(await this.publicSite.getAbout());
+    return await this.publicSite.getAbout();
   }
 }

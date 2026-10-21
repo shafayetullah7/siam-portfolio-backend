@@ -8,7 +8,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { EmailService } from '../src/domain/auth/email.service';
-import { ThrottlerExceptionFilter } from '../src/common/filters/throttler-exception.filter';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 
 const FORGOT_MESSAGE =
   'If an account exists for that email, password reset instructions were sent.';
@@ -60,7 +60,7 @@ describe.sequential('Admin password reset (e2e)', () => {
     app.setGlobalPrefix('api/v1');
     app.use(cookieParser());
     app.useGlobalPipes(new StandardSchemaValidationPipe());
-    app.useGlobalFilters(new ThrottlerExceptionFilter());
+    app.useGlobalFilters(new HttpExceptionFilter());
     await app.init();
   });
 

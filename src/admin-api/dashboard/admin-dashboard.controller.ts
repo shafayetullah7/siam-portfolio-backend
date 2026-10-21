@@ -1,6 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { apiSuccess } from '../../common/http/api-response';
 import { AdminAuthGuard } from '../../common/guards/admin-auth.guard';
 import { AdminDashboardService } from './admin-dashboard.service';
 
@@ -12,6 +11,6 @@ export class AdminDashboardController {
 
   @Get()
   async get() {
-    return apiSuccess(await this.dashboard.getCounts());
+    return await this.dashboard.getCounts();
   }
 }

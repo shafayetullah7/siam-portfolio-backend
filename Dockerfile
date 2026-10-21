@@ -12,7 +12,8 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-CMD ["pnpm", "run", "start:dev"]
+# Sync node_modules when package.json/lockfile change (compose uses a separate node_modules volume).
+CMD ["sh", "-c", "pnpm install --frozen-lockfile && exec pnpm run start:dev"]
 
 FROM base AS builder
 

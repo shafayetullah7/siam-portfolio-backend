@@ -31,7 +31,8 @@ Team reference aligned with [Nest Drizzle](https://docs.nestjs.com/data/drizzle)
 5. **API contracts:** under `public-api/<feature>/dto/` and `admin-api/<feature>/dto/` — **one `*.dto.ts` file per body, query, or params schema** (optional separate files for serialized responses). See [architecture.md](./architecture.md).
 6. **Env:** `ConfigModule.forRoot({ validationSchema: envSchema })` — fail fast on boot.
 7. **Feature code:** inject `AppConfigService` getters — not raw `ConfigService.get('PORT')`.
-8. **Responses (when needed):** Zod + `StandardSchemaSerializerInterceptor` + `@SerializeOptions({ schema })`.
+8. **Responses:** Controllers return typed DTOs; global `ApiEnvelopeInterceptor` wraps `{ success: true, data }`. Do **not** use `StandardSchemaSerializerInterceptor` or `@SerializeOptions` — rely on TypeScript + tests for response shape.
+9. **Errors:** Throw Nest `HttpException` subclasses; `HttpExceptionFilter` maps all failures to `{ success: false, message, statusCode, validationErrors? }` (field errors for 400 validation).
 
 ### Swagger
 

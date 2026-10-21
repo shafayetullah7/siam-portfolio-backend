@@ -8,7 +8,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { EmailService } from '../src/domain/auth/email.service';
-import { ThrottlerExceptionFilter } from '../src/common/filters/throttler-exception.filter';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 
 describe('Admin registration (e2e)', () => {
   let app: INestApplication<App>;
@@ -34,7 +34,7 @@ describe('Admin registration (e2e)', () => {
     app.setGlobalPrefix('api/v1');
     app.use(cookieParser());
     app.useGlobalPipes(new StandardSchemaValidationPipe());
-    app.useGlobalFilters(new ThrottlerExceptionFilter());
+    app.useGlobalFilters(new HttpExceptionFilter());
     await app.init();
   });
 

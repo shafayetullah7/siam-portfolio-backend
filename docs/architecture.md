@@ -157,13 +157,14 @@ admin-api/auth/
 
 | Layer | Responsibility |
 |--------|----------------|
-| **Controller** | Routes, `@Body({ schema })` / `@Query({ schema })`, cookies/status, `apiSuccess()` |
-| **`dto/*.dto.ts`** | One Zod schema (+ `export type … = z.infer<typeof …>`) per contract; reuse in Swagger via `standardSchemaConverter` |
+| **Controller** | Routes, `@Body({ schema })` / `@Query({ schema })`, cookies/status; **return plain DTO** (or `null` for empty DELETE) — do not call `apiSuccess()` |
+| **HTTP envelope** | Global `ApiEnvelopeInterceptor` → `{ success: true, data }`; `HttpExceptionFilter` → `{ success: false, message, statusCode, validationErrors? }` — see `src/common/http/api-response.ts` |
+| **`dto/*.dto.ts`** | Zod for **inputs**; response `*-response.dto.ts` files supply `z.infer` types (+ optional Swagger). **No** runtime response serializer — contract checked by TypeScript and tests |
 | **Facade `*.service.ts`** | Maps HTTP to domain/specialists; no fat SQL unless unavoidable |
 | **`services/*.ts`** (optional) | One class, one job — auth login, session DB, registration OTP, etc. |
 | **Domain `domain/*`** | Drizzle, transactions, `findPublished*`, publish rules — imported by facades |
 
-Shared list/pagination Zod shapes may live in `common/pagination/`; do not put route DTOs in `domain/`.
+Shared list/pagination Zod shapes live in `common/pagination/` (e.g. `{ items, meta: { page, limit, itemCount, total, totalPages } }` via `paginatedResponseSchema`); do not put route DTOs in `domain/`.
 
 ## Domain modules (from product requirements)
 
