@@ -12,6 +12,7 @@ import {
   desc,
   eq,
   ilike,
+  lte,
   ne,
   or,
   sql,
@@ -24,14 +25,18 @@ import {
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { isPubliclyVisible } from '../../common/publishing/is-publicly-visible';
 import type { PublishStatus } from '../../common/publishing/publish-status';
+import { MediaService } from '../media/media.service';
 import { articles } from '../../db/schema/writing/articles';
 import { writingSeries } from '../../db/schema/writing/writing-series';
+import { articlePublishChecklist } from './article-publish-checklist';
 import { recomputeReadingStats } from './writing-reading-stats';
 import type {
   ArticleRow,
   CreateArticleInput,
   ListAdminArticlesQuery,
   ListAdminArticlesSort,
+  ListPublishedPublicWritingQuery,
+  PublishArticleOptions,
   UpdateArticleInput,
   WritingPublicCard,
   WritingPublicDetail,
@@ -39,7 +44,18 @@ import type {
 
 const MAX_FEATURED_ON_HUB = 1;
 const DEFAULT_ADMIN_LIST_LIMIT = 24;
+const DEFAULT_PUBLIC_LIST_LIMIT = 24;
 const MAX_LIST_LIMIT = 100;
+
+function articleVisibleSql(now: Date): SQL {
+  return or(
+    eq(articles.publishStatus, 'published'),
+    and(
+      eq(articles.publishStatus, 'scheduled'),
+      lte(articles.scheduledAt, now),
+    ),
+  )!;
+}
 
 function trimOptional(value: string | null | undefined): string | null {
   if (value == null) return null;
@@ -58,7 +74,10 @@ function isUniqueViolation(error: unknown): boolean {
 
 @Injectable()
 export class WritingService {
-  constructor(@InjectDrizzle() private readonly db: NodePgDatabase) {}
+  constructor(
+    @InjectDrizzle() private readonly db: NodePgDatabase,
+    private readonly media: MediaService,
+  ) {}
 
   hrefForSlug(slug: string): string {
     return `/writing/${slug}`;
@@ -106,6 +125,12 @@ export class WritingService {
       ...(row.subtitle ? { subtitle: row.subtitle } : {}),
       body: row.body,
       ...(row.byline ? { byline: row.byline } : {}),
+      related: {
+        articles: [],
+        publications: [],
+        projects: [],
+        themes: [],
+      },
     };
   }
 
@@ -339,6 +364,149 @@ export class WritingService {
     }
   }
 
+  private async coverChecklistContext(coverMediaId: string | null) {
+    if (!coverMediaId) {
+      return { coverAlt: null, coverMediaMissing: false };
+    }
+    try {
+      const row = await this.media.findById(coverMediaId);
+      return { coverAlt: row.alt, coverMediaMissing: false };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return { coverAlt: null, coverMediaMissing: true };
+      }
+      throw error;
+    }
+  }
+
+  async getPublishChecklist(id: string) {
+    const row = await this.findByIdAdmin(id);
+    const context = await this.coverChecklistContext(row.coverMediaId);
+    return articlePublishChecklist(row, context);
+  }
+
+  async previewForAdmin(id: string): Promise<WritingPublicDetail> {
+    const row = await this.findByIdAdmin(id);
+    return this.toPublicDetail(row);
+  }
+
+  async publish(
+    id: string,
+    options: PublishArticleOptions = {},
+  ): Promise<ArticleRow> {
+    const row = await this.findByIdAdmin(id);
+    const checklist = await this.getPublishChecklist(id);
+
+    if (checklist.errors.length > 0) {
+      throw new BadRequestException({
+        message: checklist.errors.map((item) => item.message).join('; '),
+        code: 'PUBLISH_BLOCKED',
+        checklist,
+      });
+    }
+
+    if (checklist.warnings.length > 0 && !options.confirmWarnings) {
+      throw new BadRequestException({
+        message: 'Confirm publish warnings before continuing',
+        code: 'PUBLISH_WARNINGS',
+        checklist,
+      });
+    }
+
+    if (row.featuredOnHub) {
+      await this.assertFeaturedOnHubQuota(id, true);
+    }
+    const now = new Date();
+    const republish = row.materiallyUpdatedAt != null;
+    const [updated] = await this.db
+      .update(articles)
+      .set({
+        publishStatus: 'published',
+        publishedAt: now,
+        scheduledAt: null,
+        archivedAt: null,
+        ...(republish ? { materiallyUpdatedAt: now } : {}),
+      })
+      .where(eq(articles.id, id))
+      .returning();
+    if (!updated) {
+      throw new NotFoundException('Article not found');
+    }
+    return updated;
+  }
+
+  async unpublish(id: string): Promise<ArticleRow> {
+    const row = await this.findByIdAdmin(id);
+    const materiallyUpdatedAt =
+      row.materiallyUpdatedAt ?? row.publishedAt ?? null;
+    const [updated] = await this.db
+      .update(articles)
+      .set({
+        publishStatus: 'draft',
+        publishedAt: null,
+        scheduledAt: null,
+        ...(materiallyUpdatedAt ? { materiallyUpdatedAt } : {}),
+      })
+      .where(eq(articles.id, id))
+      .returning();
+    if (!updated) {
+      throw new NotFoundException('Article not found');
+    }
+    return updated;
+  }
+
+  async schedule(id: string, scheduledAt: Date): Promise<ArticleRow> {
+    if (scheduledAt.getTime() <= Date.now()) {
+      throw new BadRequestException('scheduledAt must be in the future');
+    }
+    await this.findByIdAdmin(id);
+    const [updated] = await this.db
+      .update(articles)
+      .set({
+        publishStatus: 'scheduled',
+        scheduledAt,
+        archivedAt: null,
+      })
+      .where(eq(articles.id, id))
+      .returning();
+    if (!updated) {
+      throw new NotFoundException('Article not found');
+    }
+    return updated;
+  }
+
+  async archive(id: string): Promise<ArticleRow> {
+    await this.findByIdAdmin(id);
+    const [updated] = await this.db
+      .update(articles)
+      .set({
+        publishStatus: 'archived',
+        archivedAt: new Date(),
+      })
+      .where(eq(articles.id, id))
+      .returning();
+    if (!updated) {
+      throw new NotFoundException('Article not found');
+    }
+    return updated;
+  }
+
+  async publishDueScheduled(now = new Date()): Promise<number> {
+    const due = await this.db
+      .select()
+      .from(articles)
+      .where(
+        and(
+          eq(articles.publishStatus, 'scheduled'),
+          lte(articles.scheduledAt, now),
+        ),
+      );
+    for (const row of due) {
+      await this.publish(row.id, { confirmWarnings: true });
+    }
+    return due.length;
+  }
+
   async findByIdAdmin(id: string): Promise<ArticleRow> {
     const [row] = await this.db
       .select()
@@ -372,19 +540,73 @@ export class WritingService {
     return row;
   }
 
-  async listPublished(now = new Date()): Promise<ArticleRow[]> {
-    const rows = await this.db
+  private buildPublishedPublicWhere(
+    query: ListPublishedPublicWritingQuery,
+    now: Date,
+  ): SQL {
+    const conditions: SQL[] = [articleVisibleSql(now)];
+
+    const q = query.q?.trim();
+    if (q) {
+      const pattern = `%${q}%`;
+      conditions.push(
+        or(
+          ilike(articles.title, pattern),
+          ilike(articles.slug, pattern),
+          ilike(articles.summary, pattern),
+        )!,
+      );
+      conditions.push(eq(articles.hideFromSearch, false));
+    }
+    const tag = query.tag?.trim();
+    if (tag) {
+      conditions.push(sql`${articles.tags} @> ARRAY[${tag}]::text[]`);
+    }
+    if (query.featuredOnHub === true) {
+      conditions.push(eq(articles.featuredOnHub, true));
+    }
+    if (query.excludeFeaturedOnHub === true) {
+      conditions.push(eq(articles.featuredOnHub, false));
+    }
+
+    return and(...conditions)!;
+  }
+
+  async listPublishedPublic(
+    query: ListPublishedPublicWritingQuery = {},
+    now = new Date(),
+  ): Promise<PaginatedResponse<ArticleRow>> {
+    const page = Math.max(query.page ?? 1, 1);
+    const limit = Math.min(
+      Math.max(query.limit ?? DEFAULT_PUBLIC_LIST_LIMIT, 1),
+      MAX_LIST_LIMIT,
+    );
+    const offset = (page - 1) * limit;
+    const whereClause = this.buildPublishedPublicWhere(query, now);
+
+    const [countRow] = await this.db
+      .select({ total: count() })
+      .from(articles)
+      .where(whereClause);
+    const total = Number(countRow?.total ?? 0);
+
+    const items = await this.db
       .select()
       .from(articles)
-      .orderBy(desc(articles.publishedAt), asc(articles.title));
+      .where(whereClause)
+      .orderBy(desc(articles.publishedAt), asc(articles.title))
+      .limit(limit)
+      .offset(offset);
 
-    return rows.filter((row) =>
-      isPubliclyVisible(
-        row.publishStatus as PublishStatus,
-        row.scheduledAt,
-        now,
-      ),
+    return buildPaginatedResponse(items, { page, limit, total });
+  }
+
+  async listPublished(now = new Date()): Promise<ArticleRow[]> {
+    const result = await this.listPublishedPublic(
+      { page: 1, limit: MAX_LIST_LIMIT },
+      now,
     );
+    return result.items;
   }
 
   async listPublishedSlugs(now = new Date()): Promise<string[]> {

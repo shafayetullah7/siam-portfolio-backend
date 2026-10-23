@@ -37,12 +37,37 @@ export type WritingPublicCard = {
   updatedAt?: string | null;
   materiallyUpdatedAt?: string | null;
   featuredOnHub?: boolean;
+  coverUrl?: string | null;
+  coverAlt?: string | null;
+};
+
+export type WritingPublicRelated = {
+  articles: [];
+  publications: [];
+  projects: [];
+  themes: [];
 };
 
 export type WritingPublicDetail = WritingPublicCard & {
   subtitle?: string | null;
   body: string;
   byline?: string | null;
+  related: WritingPublicRelated;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+};
+
+export type PublishArticleOptions = {
+  confirmWarnings?: boolean;
+};
+
+export type ListPublishedPublicWritingQuery = {
+  q?: string;
+  tag?: string;
+  page?: number;
+  limit?: number;
+  featuredOnHub?: boolean;
+  excludeFeaturedOnHub?: boolean;
 };
 
 export type ListAdminArticlesSort =

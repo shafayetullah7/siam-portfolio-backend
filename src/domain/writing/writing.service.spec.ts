@@ -8,8 +8,16 @@ import { recomputeReadingStats } from './writing-reading-stats';
 import { WritingService } from './writing.service';
 import { articleRow } from './writing.test-helpers';
 
+const mediaMock = {
+  findById: vi.fn().mockResolvedValue({ alt: 'Cover alt' }),
+};
+
 function writingService(db: unknown): WritingService {
-  return new WritingService(db as never);
+  return new WritingService(db as never, mediaMock as never);
+}
+
+function publishableBody(): string {
+  return Array.from({ length: 100 }, (_, i) => `word${i}`).join(' ');
 }
 
 describe('recomputeReadingStats', () => {
@@ -128,24 +136,51 @@ describe('WritingService.findPublishedBySlug', () => {
   });
 });
 
-describe('WritingService.listPublished', () => {
-  it('excludes draft and archived', async () => {
+describe('WritingService.listPublishedPublic', () => {
+  function mockListPublishedPublicDb(items: ReturnType<typeof articleRow>[], total: number) {
+    const offset = vi.fn().mockResolvedValue(items);
+    const limitFn = vi.fn().mockReturnValue({ offset });
+    const orderBy = vi.fn().mockReturnValue({ limit: limitFn });
+    const whereItems = vi.fn().mockReturnValue({ orderBy });
+    const fromItems = vi.fn().mockReturnValue({ where: whereItems });
+    const countWhere = vi.fn().mockResolvedValue([{ total }]);
+    const fromCount = vi.fn().mockReturnValue({ where: countWhere });
+    let selectCall = 0;
+    const db = {
+      select: vi.fn(() => {
+        selectCall += 1;
+        if (selectCall === 1) {
+          return { from: fromCount };
+        }
+        return { from: fromItems };
+      }),
+    };
+    return { db };
+  }
+
+  it('returns paginated meta and rows', async () => {
     const published = articleRow({
       slug: 'live',
       publishStatus: 'published',
       publishedAt: new Date(),
     });
-    const db = {
-      select: vi.fn().mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockResolvedValue([
-            articleRow({ slug: 'draft', publishStatus: 'draft' }),
-            published,
-            articleRow({ slug: 'arch', publishStatus: 'archived' }),
-          ]),
-        }),
-      }),
-    };
+    const { db } = mockListPublishedPublicDb([published], 3);
+    const result = await writingService(db).listPublishedPublic({
+      page: 2,
+      limit: 1,
+    });
+    expect(result.items).toHaveLength(1);
+    expect(result.meta.page).toBe(2);
+    expect(result.meta.total).toBe(3);
+  });
+
+  it('listPublished returns visible rows from paginated query', async () => {
+    const published = articleRow({
+      slug: 'live',
+      publishStatus: 'published',
+      publishedAt: new Date(),
+    });
+    const { db } = mockListPublishedPublicDb([published], 1);
     const rows = await writingService(db).listPublished();
     expect(rows).toHaveLength(1);
     expect(rows[0].slug).toBe('live');
@@ -211,5 +246,157 @@ describe('WritingService.listAdmin', () => {
     expect(result.meta.total).toBe(1);
     expect(result.meta.page).toBe(1);
     expect(result.meta.limit).toBe(24);
+  });
+});
+
+describe('WritingService lifecycle', () => {
+  it('publish sets publishedAt and status published', async () => {
+    const row = articleRow({
+      publishStatus: 'draft',
+      body: publishableBody(),
+      summary: 'Sum',
+      tags: ['essay'],
+      readingTimeMinutes: 2,
+    });
+    const updated = articleRow({
+      ...row,
+      publishStatus: 'published',
+      publishedAt: new Date('2026-01-02'),
+    });
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([row]),
+          }),
+        }),
+      }),
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([updated]),
+          }),
+        }),
+      }),
+    };
+    const result = await writingService(db).publish(row.id, {
+      confirmWarnings: true,
+    });
+    expect(result.publishStatus).toBe('published');
+    expect(result.publishedAt).toBeTruthy();
+  });
+
+  it('publish throws when not publishable', async () => {
+    const row = articleRow({ body: '' });
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([row]),
+          }),
+        }),
+      }),
+    };
+    await expect(writingService(db).publish(row.id)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('unpublish clears publishedAt', async () => {
+    const publishedAt = new Date('2026-01-01');
+    const row = articleRow({
+      publishStatus: 'published',
+      publishedAt,
+    });
+    const updated = articleRow({
+      ...row,
+      publishStatus: 'draft',
+      publishedAt: null,
+      materiallyUpdatedAt: publishedAt,
+    });
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([row]),
+          }),
+        }),
+      }),
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([updated]),
+          }),
+        }),
+      }),
+    };
+    const result = await writingService(db).unpublish(row.id);
+    expect(result.publishStatus).toBe('draft');
+    expect(result.publishedAt).toBeNull();
+  });
+
+  it('schedule rejects past scheduledAt', async () => {
+    const row = articleRow();
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([row]),
+          }),
+        }),
+      }),
+    };
+    await expect(
+      writingService(db).schedule(row.id, new Date('2020-01-01')),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('publishDueScheduled promotes due rows', async () => {
+    const due = articleRow({
+      id: 'due-1',
+      publishStatus: 'scheduled',
+      scheduledAt: new Date('2026-01-01'),
+      body: publishableBody(),
+      summary: 'S',
+      title: 'Title',
+      slug: 'due-slug',
+      tags: ['essay'],
+      readingTimeMinutes: 2,
+    });
+    function drizzleWhereResult(rows: ReturnType<typeof articleRow>[]) {
+      return {
+        limit: vi.fn().mockResolvedValue(rows),
+        then(
+          onFulfilled: (value: typeof rows) => unknown,
+          onRejected?: (reason: unknown) => unknown,
+        ) {
+          return Promise.resolve(rows).then(onFulfilled, onRejected);
+        },
+      };
+    }
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockImplementation(() => drizzleWhereResult([due])),
+        }),
+      }),
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([
+              articleRow({
+                ...due,
+                publishStatus: 'published',
+                publishedAt: new Date(),
+              }),
+            ]),
+          }),
+        }),
+      }),
+    };
+    const count = await writingService(db).publishDueScheduled(
+      new Date('2026-06-01'),
+    );
+    expect(count).toBe(1);
   });
 });

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   INestApplication,
   NotFoundException,
@@ -15,7 +16,9 @@ import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter
 import { AdminAuthGuard } from '../src/common/guards/admin-auth.guard';
 import { buildPaginatedResponse } from '../src/common/pagination/paginated-response';
 import { recomputeReadingStats } from '../src/domain/writing/writing-reading-stats';
+import { articlePublishChecklist } from '../src/domain/writing/article-publish-checklist';
 import { WritingService } from '../src/domain/writing/writing.service';
+import { PublicWritingService } from '../src/public-api/writing/public-writing.service';
 import type {
   CreateArticleInput,
   UpdateArticleInput,
@@ -23,6 +26,10 @@ import type {
 import { articleRow } from '../src/domain/writing/writing.test-helpers';
 
 const ARTICLE_ID = '00000000-0000-4000-8000-000000000099';
+
+function longBody(): string {
+  return Array.from({ length: 100 }, (_, i) => `word${i}`).join(' ');
+}
 
 describe('Admin writing CRUD (e2e)', () => {
   let app: INestApplication<App>;
@@ -87,6 +94,49 @@ describe('Admin writing CRUD (e2e)', () => {
         total: rows.length,
       });
     }),
+    getPublishChecklist: vi.fn(async (id: string) => {
+      const row = store.get(id);
+      if (!row) throw new NotFoundException('Article not found');
+      return articlePublishChecklist(row, {});
+    }),
+    publish: vi.fn(async (id: string, options: { confirmWarnings?: boolean } = {}) => {
+      const row = store.get(id);
+      if (!row) throw new NotFoundException('Article not found');
+      const checklist = articlePublishChecklist(row, {});
+      if (checklist.errors.length > 0) {
+        throw new BadRequestException({
+          message: checklist.errors.map((item) => item.message).join('; '),
+          code: 'PUBLISH_BLOCKED',
+          checklist,
+        });
+      }
+      if (checklist.warnings.length > 0 && !options.confirmWarnings) {
+        throw new BadRequestException({
+          message: 'Confirm publish warnings before continuing',
+          code: 'PUBLISH_WARNINGS',
+          checklist,
+        });
+      }
+      const now = new Date();
+      const updated = articleRow({
+        ...row,
+        publishStatus: 'published',
+        publishedAt: now,
+        scheduledAt: null,
+        archivedAt: null,
+      });
+      store.set(id, updated);
+      return updated;
+    }),
+  };
+
+  const publicWritingMock: Partial<PublicWritingService> = {
+    previewById: vi.fn(async (id: string) => {
+      const row = store.get(id);
+      if (!row) throw new NotFoundException('Article not found');
+      const domain = new WritingService({} as never, {} as never);
+      return domain.toPublicDetail(row);
+    }),
   };
 
   beforeEach(async () => {
@@ -98,6 +148,7 @@ describe('Admin writing CRUD (e2e)', () => {
       providers: [
         AdminWritingService,
         { provide: WritingService, useValue: writingMock },
+        { provide: PublicWritingService, useValue: publicWritingMock },
       ],
     })
       .overrideGuard(AdminAuthGuard)
@@ -184,5 +235,57 @@ describe('Admin writing CRUD (e2e)', () => {
       .expect(409);
 
     expect(res.body.success).toBe(false);
+  });
+
+  it('preview returns draft title', async () => {
+    store.set(
+      ARTICLE_ID,
+      articleRow({
+        id: ARTICLE_ID,
+        title: 'Preview Me',
+        slug: 'preview-me',
+        body: longBody(),
+      }),
+    );
+
+    const previewRes = await request(app.getHttpServer())
+      .get(`/api/v1/admin/writing/${ARTICLE_ID}/preview`)
+      .expect(200);
+
+    expect(previewRes.body.data.title).toBe('Preview Me');
+  });
+
+  it('publish-check reports errors for short body', async () => {
+    store.set(
+      ARTICLE_ID,
+      articleRow({
+        id: ARTICLE_ID,
+        body: 'too short',
+      }),
+    );
+
+    const checkRes = await request(app.getHttpServer())
+      .get(`/api/v1/admin/writing/${ARTICLE_ID}/publish-check`)
+      .expect(200);
+
+    expect(checkRes.body.data.errors.length).toBeGreaterThan(0);
+  });
+
+  it('publish returns PUBLISH_BLOCKED when checklist has errors', async () => {
+    store.set(
+      ARTICLE_ID,
+      articleRow({
+        id: ARTICLE_ID,
+        body: '',
+      }),
+    );
+
+    const res = await request(app.getHttpServer())
+      .post(`/api/v1/admin/writing/${ARTICLE_ID}/publish`)
+      .send({})
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toMatch(/body/i);
   });
 });

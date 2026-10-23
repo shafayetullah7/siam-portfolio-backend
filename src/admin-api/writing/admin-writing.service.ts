@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { PublicWritingService } from '../../public-api/writing/public-writing.service';
 import { WritingService } from '../../domain/writing/writing.service';
 import type {
   ArticleRow,
@@ -8,12 +9,16 @@ import type {
 import type { ArticleAdminResponse } from './dto/article-admin-response.dto';
 import type { CreateArticleBody } from './dto/create-article.dto';
 import type { ListWritingQuery } from './dto/list-writing-query.dto';
+import type { PublishArticleBody } from './dto/publish-article.dto';
 import type { UpdateArticleBody } from './dto/update-article.dto';
 import type { WritingAdminSummary } from './dto/writing-admin-summary.dto';
 
 @Injectable()
 export class AdminWritingService {
-  constructor(private readonly writing: WritingService) {}
+  constructor(
+    private readonly writing: WritingService,
+    private readonly publicWriting: PublicWritingService,
+  ) {}
 
   private mapSummary(row: ArticleRow): WritingAdminSummary {
     return {
@@ -96,6 +101,34 @@ export class AdminWritingService {
 
   async update(id: string, body: UpdateArticleBody) {
     const row = await this.writing.update(id, this.toUpdateInput(body));
+    return this.mapAdmin(row);
+  }
+
+  async preview(id: string) {
+    return await this.publicWriting.previewById(id);
+  }
+
+  async getPublishCheck(id: string) {
+    return await this.writing.getPublishChecklist(id);
+  }
+
+  async publish(id: string, body: PublishArticleBody) {
+    const row = await this.writing.publish(id, body);
+    return this.mapAdmin(row);
+  }
+
+  async unpublish(id: string) {
+    const row = await this.writing.unpublish(id);
+    return this.mapAdmin(row);
+  }
+
+  async archive(id: string) {
+    const row = await this.writing.archive(id);
+    return this.mapAdmin(row);
+  }
+
+  async schedule(id: string, scheduledAt: Date) {
+    const row = await this.writing.schedule(id, scheduledAt);
     return this.mapAdmin(row);
   }
 }

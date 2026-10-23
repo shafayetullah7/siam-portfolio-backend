@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ProjectsService } from '../domain/projects/projects.service';
+import { WritingService } from '../domain/writing/writing.service';
 import { PublicationsService } from '../domain/publications/publications.service';
 import { ResearchService } from '../domain/research/research.service';
 import { SitePagesService } from '../domain/site-pages/site-pages.service';
@@ -14,6 +15,7 @@ export class PublishSchedulerService {
     private readonly research: ResearchService,
     private readonly publications: PublicationsService,
     private readonly projects: ProjectsService,
+    private readonly writing: WritingService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -33,6 +35,10 @@ export class PublishSchedulerService {
     const projectCount = await this.projects.publishDueScheduled();
     if (projectCount > 0) {
       this.logger.log(`Published ${projectCount} scheduled project(s)`);
+    }
+    const articleCount = await this.writing.publishDueScheduled();
+    if (articleCount > 0) {
+      this.logger.log(`Published ${articleCount} scheduled article(s)`);
     }
   }
 }
