@@ -7,10 +7,12 @@ import { PublicTimelineModule } from './timeline/public-timeline.module';
 import { PublicWritingModule } from './writing/public-writing.module';
 import { PublicResearchModule } from './research/public-research.module';
 import { PublicSitePagesModule } from './site-pages/public-site-pages.module';
+import { PublicContactModule } from './contact/public-contact.module';
 
 @Module({
   imports: [
     PublicHealthModule,
+    PublicContactModule,
     PublicResearchModule,
     PublicPublicationsModule,
     PublicProjectsModule,

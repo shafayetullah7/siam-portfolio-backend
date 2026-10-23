@@ -189,7 +189,7 @@ Shared list/pagination Zod shapes live in `common/pagination/` (e.g. `{ items, m
 | `collaborations` | P14, A09 | Optional page | CRUD + visibility |
 | `media` | A10 | Public file URLs | Library, upload |
 | `site` | Nav, SEO, A12 | Nav/footer/meta for SSR | Settings |
-| `contact` | P16, A11 | Submit inquiry | Inbox |
+| `contact` | P16, A11 | `POST public/contact`, `GET public/contact/config` (throttled POST) | `GET/PATCH/DELETE admin/messages` (inbox) |
 | `search` | P17 | Search pubs + writing | Hide from index |
 | `auth` | A01 | — | Login, refresh |
 | `revisions` | A13 | Preview token | Publish, schedule, restore |
@@ -270,6 +270,8 @@ User-facing entities that appear on the public site: **`slug`**, **`publishStatu
 - **Admin revisions:** `GET admin/research/:id/revisions` and `POST .../revisions/:revisionId/restore` use shared `RevisionsService` with entity type `research_theme`; snapshots on create, update, lifecycle, and restore.
 - **Research cover:** `coverMediaId` on admin create/update must reference an image in `media` (`MediaService.assertImageMediaId`). Public list/detail resolve `url` and `alt` via `MediaService.findById` (not stored on the theme row).
 - **Public research (P03/P04):** `GET public/research-themes` and `GET :slug` are the runtime source for `/research` and `/research/:slug`; list cards expose `relatedCounts.publications` and `relatedCounts.projects` from theme junction links (published related items only). Public detail may include `prevSlug` / `nextSlug` (adjacent published themes by `sortOrder`, then title). `related.talks` stays empty until M11.
+- **Public contact (P16 / M12 MSG3):** `GET public/contact/config` returns owner copy and optional Turnstile site key; `POST public/contact` accepts inquiries (no public GET on stored messages). POST is rate-limited; success body is `{ acknowledged: true }` only.
+- **Admin contact inbox (A11 / M12 MSG5):** `GET admin/messages` (paginated list with snippet, default excludes spam); `GET admin/messages/:id` (full body, notes, metadata; marks non-spam unread as read); `PATCH admin/messages/:id` (`status`, `isRead`, `adminNotes`); `DELETE admin/messages/:id` (hard delete).
 - **Research sitemap:** `getPublicSite().sitemapPaths` includes `/research` and `/research/{slug}` for each published theme (`ResearchService.listPublishedSlugs`).
 - **Publications sitemap:** `getPublicSite().sitemapPaths` includes `/publications` and `/publications/{slug}` for each published publication (`PublicationsService.listPublishedSlugs`).
 - **Projects sitemap:** `getPublicSite().sitemapPaths` includes `/projects` and `/projects/{slug}` for each published project (`ProjectsService.listPublishedSlugs`).

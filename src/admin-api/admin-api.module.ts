@@ -9,6 +9,7 @@ import { AdminWritingModule } from './writing/admin-writing.module';
 import { AdminPublicationsModule } from './publications/admin-publications.module';
 import { AdminResearchModule } from './research/admin-research.module';
 import { AdminSitePagesModule } from './site-pages/admin-site-pages.module';
+import { AdminMessagesModule } from './messages/admin-messages.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AdminSitePagesModule } from './site-pages/admin-site-pages.module';
     AdminSiteModule,
     AdminDashboardModule,
     AdminMediaModule,
+    AdminMessagesModule,
   ],
 })
 export class AdminApiModule {}
