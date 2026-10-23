@@ -11,6 +11,7 @@ import type { CreateTimelineEntryBody } from './dto/create-timeline-entry.dto';
 import type { ListTimelineQuery } from './dto/list-timeline-query.dto';
 import type { TimelineAdminResponse } from './dto/timeline-admin-response.dto';
 import type { TimelineAdminSummary } from './dto/timeline-admin-summary.dto';
+import type { ReplaceTimelineEntryMediaBody } from './dto/replace-timeline-entry-media.dto';
 import type { UpdateTimelineEntryBody } from './dto/update-timeline-entry.dto';
 
 @Injectable()
@@ -146,6 +147,20 @@ export class AdminTimelineService {
 
   async update(id: string, body: UpdateTimelineEntryBody) {
     await this.timeline.update(id, this.toUpdateInput(body));
+    const entry = await this.timeline.findByIdAdmin(id);
+    return await this.mapAdmin(entry);
+  }
+
+  async replaceMedia(id: string, body: ReplaceTimelineEntryMediaBody) {
+    await this.timeline.replaceEntryMedia(
+      id,
+      body.items.map((item) => ({
+        mediaId: item.mediaId,
+        sortOrder: item.sortOrder,
+        caption: item.caption ?? null,
+        imageRole: item.imageRole ?? null,
+      })),
+    );
     const entry = await this.timeline.findByIdAdmin(id);
     return await this.mapAdmin(entry);
   }

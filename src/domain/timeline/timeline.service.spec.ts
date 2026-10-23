@@ -196,7 +196,71 @@ describe('TimelineService.replaceEntryMedia', () => {
   });
 });
 
+function mockDbForPublishedList(entryRows: ReturnType<typeof timelineEntryRow>[]) {
+  let selectCall = 0;
+  return {
+    select: vi.fn().mockImplementation(() => ({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockImplementation(() => {
+          selectCall += 1;
+          if (selectCall === 1) {
+            return Promise.resolve(entryRows);
+          }
+          return {
+            orderBy: vi.fn().mockResolvedValue([]),
+          };
+        }),
+      }),
+    })),
+  };
+}
+
 describe('TimelineService.listPublishedByKinds', () => {
+  it('excludes scheduled entries until due', async () => {
+    const future = new Date(Date.now() + 86_400_000);
+    const published = timelineEntryRow({
+      id: 'pub',
+      publishStatus: 'published',
+      publishedAt: new Date(),
+    });
+    const scheduled = timelineEntryRow({
+      id: 'sched',
+      publishStatus: 'scheduled',
+      scheduledAt: future,
+    });
+    const db = mockDbForPublishedList([published, scheduled]);
+    const cards = await timelineService(db).listPublishedByKinds(['award'], {
+      now: new Date(),
+    });
+    expect(cards).toHaveLength(1);
+    expect(cards[0].id).toBe('pub');
+  });
+
+  it('paginates with page and limit', async () => {
+    const rows = [
+      timelineEntryRow({
+        id: 'a',
+        publishStatus: 'published',
+        publishedAt: new Date(),
+        startDate: '2024-03-01',
+      }),
+      timelineEntryRow({
+        id: 'b',
+        publishStatus: 'published',
+        publishedAt: new Date(),
+        startDate: '2024-01-01',
+      }),
+    ];
+    const db = mockDbForPublishedList(rows);
+    const page1 = await timelineService(db).listPublishedByKinds(['award'], {
+      page: 1,
+      limit: 1,
+      sort: 'startDateDesc',
+    });
+    expect(page1).toHaveLength(1);
+    expect(page1[0].id).toBe('a');
+  });
+
   it('excludes draft entries', async () => {
     const published = timelineEntryRow({
       id: 'pub',
@@ -207,15 +271,7 @@ describe('TimelineService.listPublishedByKinds', () => {
       id: 'draft',
       publishStatus: 'draft',
     });
-    const db = {
-      select: vi.fn().mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockResolvedValue([published, draft]),
-          }),
-        }),
-      }),
-    };
+    const db = mockDbForPublishedList([published, draft]);
     const cards = await timelineService(db).listPublishedByKinds(['award']);
     expect(cards).toHaveLength(1);
     expect(cards[0].id).toBe('pub');

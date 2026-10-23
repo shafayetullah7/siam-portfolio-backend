@@ -45,6 +45,7 @@ import type {
   CreateTimelineEntryInput,
   ListAdminTimelineQuery,
   ListAdminTimelineSort,
+  ListPublicTimelineSort,
   ListPublishedByKindsOptions,
   ReplaceEntryMediaInput,
   TimelineEntryAdmin,
@@ -58,7 +59,8 @@ import type {
 
 const MAX_ENTRY_MEDIA = 10;
 const MAX_FEATURED_PUBLISHED_ACHIEVEMENTS = 3;
-const DEFAULT_PUBLIC_LIST_LIMIT = 100;
+const DEFAULT_PUBLIC_LIST_LIMIT = 24;
+const MAX_PUBLIC_LIST_LIMIT = 100;
 const DEFAULT_ADMIN_LIST_LIMIT = 24;
 const MAX_LIST_LIMIT = 100;
 
@@ -120,6 +122,7 @@ export class TimelineService {
       endDate: row.endDate,
       isOngoing: row.isOngoing,
       featured: row.featured,
+      proofUrl: row.proofUrl,
       images,
       ...(href ? { href } : {}),
     };
@@ -404,27 +407,12 @@ export class TimelineService {
     return this.toPublicDetail(row, images);
   }
 
-  async listPublishedByKinds(
-    kinds: readonly TimelineEntryKind[],
-    options: ListPublishedByKindsOptions = {},
-  ): Promise<TimelinePublicCard[]> {
-    const now = options.now ?? new Date();
-    const limit = Math.min(
-      options.limit ?? DEFAULT_PUBLIC_LIST_LIMIT,
-      DEFAULT_PUBLIC_LIST_LIMIT,
-    );
-
-    const rows = await this.db
-      .select()
-      .from(timelineEntries)
-      .where(inArray(timelineEntries.kind, [...kinds]))
-      .orderBy(
-        asc(timelineEntries.sortOrder),
-        desc(timelineEntries.startDate),
-        asc(timelineEntries.title),
-      );
-
-    const visible = rows.filter((row) => {
+  private filterPublishedRows(
+    rows: TimelineEntryRow[],
+    options: ListPublishedByKindsOptions,
+    now: Date,
+  ): TimelineEntryRow[] {
+    return rows.filter((row) => {
       if (
         !isPubliclyVisible(
           row.publishStatus as PublishStatus,
@@ -439,13 +427,89 @@ export class TimelineService {
       }
       return true;
     });
+  }
 
-    const limited = visible.slice(0, limit);
-    const mediaByEntry = await this.loadMediaByEntryIds(
-      limited.map((r) => r.id),
+  private sortPublishedRows(
+    rows: TimelineEntryRow[],
+    sort: ListPublicTimelineSort = 'startDateDesc',
+  ): TimelineEntryRow[] {
+    const sorted = [...rows];
+    switch (sort) {
+      case 'titleAsc':
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'sortOrderAsc':
+        sorted.sort((a, b) => {
+          if (a.sortOrder !== b.sortOrder) {
+            return a.sortOrder - b.sortOrder;
+          }
+          const aStart = a.startDate ?? '';
+          const bStart = b.startDate ?? '';
+          if (aStart !== bStart) {
+            return bStart.localeCompare(aStart);
+          }
+          return a.title.localeCompare(b.title);
+        });
+        break;
+      case 'startDateDesc':
+      default:
+        sorted.sort((a, b) => {
+          const aStart = a.startDate ?? '';
+          const bStart = b.startDate ?? '';
+          if (aStart !== bStart) {
+            return bStart.localeCompare(aStart);
+          }
+          if (a.sortOrder !== b.sortOrder) {
+            return a.sortOrder - b.sortOrder;
+          }
+          return a.title.localeCompare(b.title);
+        });
+        break;
+    }
+    return sorted;
+  }
+
+  async countPublishedByKinds(
+    kinds: readonly TimelineEntryKind[],
+    options: ListPublishedByKindsOptions = {},
+  ): Promise<number> {
+    const now = options.now ?? new Date();
+    const rows = await this.db
+      .select()
+      .from(timelineEntries)
+      .where(inArray(timelineEntries.kind, [...kinds]));
+    return this.filterPublishedRows(rows, options, now).length;
+  }
+
+  async listPublishedByKinds(
+    kinds: readonly TimelineEntryKind[],
+    options: ListPublishedByKindsOptions = {},
+  ): Promise<TimelinePublicCard[]> {
+    const now = options.now ?? new Date();
+    const page = Math.max(options.page ?? 1, 1);
+    const limit = Math.min(
+      Math.max(options.limit ?? DEFAULT_PUBLIC_LIST_LIMIT, 1),
+      MAX_PUBLIC_LIST_LIMIT,
+    );
+    const offset = (page - 1) * limit;
+    const sort = options.sort ?? 'startDateDesc';
+
+    const rows = await this.db
+      .select()
+      .from(timelineEntries)
+      .where(inArray(timelineEntries.kind, [...kinds]));
+
+    const visible = this.sortPublishedRows(
+      this.filterPublishedRows(rows, options, now),
+      sort,
     );
 
-    return limited.map((row) => {
+    const paged = visible.slice(offset, offset + limit);
+    const mediaByEntry = await this.loadMediaByEntryIds(
+      paged.map((r) => r.id),
+    );
+
+    return paged.map((row) => {
       const images = mediaByEntry.get(row.id) ?? [];
       return this.toPublicCard(row, images);
     });

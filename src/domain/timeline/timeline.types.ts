@@ -77,13 +77,13 @@ export type TimelinePublicCard = {
   endDate: string | null;
   isOngoing: boolean;
   featured: boolean;
+  proofUrl: string | null;
   images: TimelinePublicImage[];
   href?: string;
 };
 
 export type TimelinePublicDetail = TimelinePublicCard & {
   summary: string | null;
-  proofUrl: string | null;
   rankOrPlacement: string | null;
   eventName: string | null;
   credentialId: string | null;
@@ -97,8 +97,19 @@ export type TimelinePublicDetail = TimelinePublicCard & {
   publishedAt: string | null;
 };
 
+export const LIST_PUBLIC_TIMELINE_SORTS = [
+  'startDateDesc',
+  'sortOrderAsc',
+  'titleAsc',
+] as const;
+
+export type ListPublicTimelineSort =
+  (typeof LIST_PUBLIC_TIMELINE_SORTS)[number];
+
 export type ListPublishedByKindsOptions = {
   limit?: number;
+  page?: number;
+  sort?: ListPublicTimelineSort;
   featuredOnly?: boolean;
   now?: Date;
 };

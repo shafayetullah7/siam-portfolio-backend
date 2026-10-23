@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -20,6 +21,10 @@ import {
   type ListTimelineQuery,
 } from './dto/list-timeline-query.dto';
 import { timelineEntryIdParamSchema } from './dto/timeline-entry-id-params.dto';
+import {
+  replaceTimelineEntryMediaBodySchema,
+  type ReplaceTimelineEntryMediaBody,
+} from './dto/replace-timeline-entry-media.dto';
 import {
   updateTimelineEntryBodySchema,
   type UpdateTimelineEntryBody,
@@ -60,5 +65,15 @@ export class AdminTimelineController {
     @Body({ schema: updateTimelineEntryBodySchema }) body: UpdateTimelineEntryBody,
   ) {
     return await this.timeline.update(id, body);
+  }
+
+  @Put(':id/media')
+  @ApiOperation({ summary: 'Replace ordered gallery images for a timeline entry' })
+  async replaceMedia(
+    @Param('id', { schema: timelineEntryIdParamSchema }) id: string,
+    @Body({ schema: replaceTimelineEntryMediaBodySchema })
+    body: ReplaceTimelineEntryMediaBody,
+  ) {
+    return await this.timeline.replaceMedia(id, body);
   }
 }

@@ -18,20 +18,21 @@ import { MediaService } from '../src/domain/media/media.service';
 import { TimelineService } from '../src/domain/timeline/timeline.service';
 import type {
   CreateTimelineEntryInput,
+  ReplaceEntryMediaInput,
   TimelineEntryAdmin,
+  TimelineEntryMediaAdmin,
   UpdateTimelineEntryInput,
 } from '../src/domain/timeline/timeline.types';
 import { timelineEntryRow } from '../src/domain/timeline/timeline.test-helpers';
 
 const ENTRY_ID = '00000000-0000-4000-8000-000000000088';
-
-function toAdminEntry(row: ReturnType<typeof timelineEntryRow>): TimelineEntryAdmin {
-  return { ...row, media: [] };
-}
+const MEDIA_ID_1 = '00000000-0000-4000-8000-000000000001';
+const MEDIA_ID_2 = '00000000-0000-4000-8000-000000000002';
 
 describe('Admin timeline CRUD (e2e)', () => {
   let app: INestApplication<App>;
   const store = new Map<string, ReturnType<typeof timelineEntryRow>>();
+  const mediaByEntry = new Map<string, TimelineEntryMediaAdmin[]>();
 
   const timelineMock: Partial<TimelineService> = {
     create: vi.fn(async (input: CreateTimelineEntryInput) => {
@@ -59,8 +60,25 @@ describe('Admin timeline CRUD (e2e)', () => {
     findByIdAdmin: vi.fn(async (id: string) => {
       const row = store.get(id);
       if (!row) throw new NotFoundException('Timeline entry not found');
-      return toAdminEntry(row);
+      return {
+        ...row,
+        media: mediaByEntry.get(id) ?? [],
+      } satisfies TimelineEntryAdmin;
     }),
+    replaceEntryMedia: vi.fn(
+      async (entryId: string, items: ReplaceEntryMediaInput) => {
+        const sorted = [...items].sort((a, b) => a.sortOrder - b.sortOrder);
+        const media = sorted.map((item, index) => ({
+          id: `00000000-0000-4000-8000-0000000000${10 + index}`,
+          mediaId: item.mediaId,
+          sortOrder: item.sortOrder,
+          caption: item.caption ?? null,
+          imageRole: item.imageRole ?? null,
+        }));
+        mediaByEntry.set(entryId, media);
+        return media;
+      },
+    ),
     listAdmin: vi.fn(async (query = {}) => {
       let rows = [...store.values()];
       if (query.kind) {
@@ -82,11 +100,16 @@ describe('Admin timeline CRUD (e2e)', () => {
   };
 
   const mediaMock: Partial<MediaService> = {
-    findById: vi.fn(),
+    findById: vi.fn(async (id: string) => ({
+      id,
+      url: `https://cdn.example/${id}.jpg`,
+      alt: 'Gallery alt',
+    })),
   };
 
   beforeEach(async () => {
     store.clear();
+    mediaByEntry.clear();
     vi.clearAllMocks();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -161,6 +184,67 @@ describe('Admin timeline CRUD (e2e)', () => {
       .post('/api/v1/admin/timeline')
       .send({ kind: 'not_a_kind', title: 'T' })
       .expect(400);
+  });
+
+  it('PUT media replaces gallery with two ordered images', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/admin/timeline')
+      .send({ kind: 'award', title: 'Prize' })
+      .expect(201);
+
+    const id = createRes.body.data.id;
+
+    const putRes = await request(app.getHttpServer())
+      .put(`/api/v1/admin/timeline/${id}/media`)
+      .send({
+        items: [
+          { mediaId: MEDIA_ID_2, sortOrder: 1, caption: 'Second' },
+          { mediaId: MEDIA_ID_1, sortOrder: 0, caption: 'First' },
+        ],
+      })
+      .expect(200);
+
+    expect(timelineMock.replaceEntryMedia).toHaveBeenCalledWith(
+      id,
+      expect.arrayContaining([
+        expect.objectContaining({
+          mediaId: MEDIA_ID_1,
+          sortOrder: 0,
+          caption: 'First',
+        }),
+        expect.objectContaining({
+          mediaId: MEDIA_ID_2,
+          sortOrder: 1,
+          caption: 'Second',
+        }),
+      ]),
+    );
+
+    expect(putRes.body.data.mediaLinks).toHaveLength(2);
+    expect(putRes.body.data.mediaLinks[0].mediaId).toBe(MEDIA_ID_1);
+    expect(putRes.body.data.mediaLinks[0].sortOrder).toBe(0);
+    expect(putRes.body.data.mediaLinks[1].mediaId).toBe(MEDIA_ID_2);
+    expect(putRes.body.data.mediaLinks[0].url).toContain(MEDIA_ID_1);
+  });
+
+  it('PUT media rejects more than 10 items', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/admin/timeline')
+      .send({ kind: 'award', title: 'Prize' })
+      .expect(201);
+
+    const id = createRes.body.data.id;
+    const items = Array.from({ length: 11 }, (_, i) => ({
+      mediaId: `00000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`,
+      sortOrder: i,
+    }));
+
+    await request(app.getHttpServer())
+      .put(`/api/v1/admin/timeline/${id}/media`)
+      .send({ items })
+      .expect(400);
+
+    expect(timelineMock.replaceEntryMedia).not.toHaveBeenCalled();
   });
 
   it('returns conflict when domain reports duplicate slug', async () => {
