@@ -7,6 +7,20 @@ const settingsRow = {
   siteName: 'SIAM',
   defaultMetaDescription: null,
   footerText: null,
+  researchHubIntro: null,
+  projectsHubIntro: null,
+  writingHubIntro: null,
+  achievementsHubIntro: null,
+  experienceHubIntro: null,
+  contactFormEnabled: true,
+  contactPageIntro: 'Get in touch',
+  contactCollaborationGuidance: null,
+  contactResponseTimeNote: null,
+  contactCategories: ['Collaboration', 'Speaking'],
+  contactConsentText: 'I agree to be contacted.',
+  contactSuccessMessage: 'Thanks — your message was received.',
+  contactPublicEmail: 'researcher@example.edu',
+  contactShowEmailOnPage: true,
   faviconUrl: null,
   faviconMediaId: null,
   createdAt: new Date(),
@@ -154,6 +168,26 @@ describe('SiteService.getPublicSite', () => {
 
     const site = await service.getPublicSite();
     expect(site.sitemapPaths.some((p) => p === '/writing')).toBe(false);
+  });
+});
+
+describe('SiteService.getContactConfig', () => {
+  it('maps site settings to public contact config', async () => {
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          limit: vi.fn().mockResolvedValue([settingsRow]),
+        })),
+      })),
+    };
+    const service = createSiteService(db);
+    const config = await service.getContactConfig();
+    expect(config.formEnabled).toBe(true);
+    expect(config.intro).toBe('Get in touch');
+    expect(config.categories).toEqual(['Collaboration', 'Speaking']);
+    expect(config.consentText).toBe('I agree to be contacted.');
+    expect(config.publicEmail).toBe('researcher@example.edu');
+    expect(config.showEmailOnPage).toBe(true);
   });
 });
 

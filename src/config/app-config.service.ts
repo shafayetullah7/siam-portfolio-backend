@@ -125,4 +125,16 @@ export class AppConfigService {
   get cloudinaryApiSecret(): AppEnv['CLOUDINARY_API_SECRET'] {
     return this.configService.getOrThrow('CLOUDINARY_API_SECRET');
   }
+
+  get turnstileSecretKey(): string | undefined {
+    return this.configService.get('TURNSTILE_SECRET_KEY');
+  }
+
+  get turnstileSiteKey(): string | undefined {
+    return this.configService.get('TURNSTILE_SITE_KEY');
+  }
+
+  get isTurnstileEnabled(): boolean {
+    return Boolean(this.turnstileSecretKey?.trim() && this.turnstileSiteKey?.trim());
+  }
 }

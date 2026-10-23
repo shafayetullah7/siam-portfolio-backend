@@ -15,6 +15,7 @@ import { PublicationsService } from '../publications/publications.service';
 import { ResearchService } from '../research/research.service';
 import { SitePagesService } from '../site-pages/site-pages.service';
 import { TimelineService } from '../timeline/timeline.service';
+import { toPublicContactConfig } from '../contact/contact-config.mapper';
 
 @Injectable()
 export class SiteService {
@@ -28,6 +29,11 @@ export class SiteService {
     private readonly writing: WritingService,
     private readonly timeline: TimelineService,
   ) {}
+
+  async getContactConfig() {
+    const settings = await this.getOrCreateSettings();
+    return toPublicContactConfig(settings);
+  }
 
   async getOrCreateSettings() {
     const [existing] = await this.db.select().from(siteSettings).limit(1);

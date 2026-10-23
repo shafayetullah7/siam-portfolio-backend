@@ -51,6 +51,9 @@ export const envSchema = z.object({
     .string()
     .min(1)
     .default('placeholder_api_secret'),
+  /** Cloudflare Turnstile — when both are set, contact submit requires a valid token. */
+  TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
+  TURNSTILE_SITE_KEY: z.string().min(1).optional(),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

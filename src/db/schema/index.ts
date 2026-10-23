@@ -1,4 +1,5 @@
 export * from './auth';
+export * from './contact';
 export * from './content-revisions';
 export * from './media';
 export * from './profile-home';

@@ -1,6 +1,7 @@
 import {
   boolean,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -21,6 +22,20 @@ export const siteSettings = pgTable('site_settings', {
   writingHubIntro: text('writing_hub_intro'),
   achievementsHubIntro: text('achievements_hub_intro'),
   experienceHubIntro: text('experience_hub_intro'),
+  contactFormEnabled: boolean('contact_form_enabled').notNull().default(true),
+  contactPageIntro: text('contact_page_intro'),
+  contactCollaborationGuidance: text('contact_collaboration_guidance'),
+  contactResponseTimeNote: text('contact_response_time_note'),
+  contactCategories: jsonb('contact_categories')
+    .$type<string[]>()
+    .notNull()
+    .default([]),
+  contactConsentText: text('contact_consent_text'),
+  contactSuccessMessage: text('contact_success_message'),
+  contactPublicEmail: varchar('contact_public_email', { length: 320 }),
+  contactShowEmailOnPage: boolean('contact_show_email_on_page')
+    .notNull()
+    .default(false),
   faviconUrl: varchar('favicon_url', { length: 500 }),
   faviconMediaId: uuid('favicon_media_id').references(() => media.id, {
     onDelete: 'set null',
