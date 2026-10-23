@@ -139,4 +139,10 @@ describe('Public contact (e2e)', () => {
     expect(res.body.success).toBe(false);
     expect(res.body.statusCode).toBe(429);
   });
+
+  it('does not expose a public GET route for stored messages', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/public/contact/messages')
+      .expect(404);
+  });
 });

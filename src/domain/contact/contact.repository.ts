@@ -5,7 +5,9 @@ import {
   count,
   desc,
   eq,
+  gte,
   ilike,
+  lte,
   ne,
   or,
   type SQL,
@@ -76,6 +78,12 @@ export class ContactRepository {
     if (query.category !== undefined) {
       parts.push(eq(contactMessages.category, query.category));
     }
+    if (query.from !== undefined) {
+      parts.push(gte(contactMessages.submittedAt, query.from));
+    }
+    if (query.to !== undefined) {
+      parts.push(lte(contactMessages.submittedAt, query.to));
+    }
     const q = query.q?.trim();
     if (q) {
       const pattern = `%${q}%`;
@@ -83,6 +91,7 @@ export class ContactRepository {
         or(
           ilike(contactMessages.senderName, pattern),
           ilike(contactMessages.senderEmail, pattern),
+          ilike(contactMessages.body, pattern),
         )!,
       );
     }
@@ -143,4 +152,31 @@ export class ContactRepository {
       throw new NotFoundException('Message not found');
     }
   }
+
+  async countInboxDashboard(): Promise<InboxDashboardCounts> {
+    const [newRows, unreadRows] = await Promise.all([
+      this.db
+        .select({ value: count() })
+        .from(contactMessages)
+        .where(eq(contactMessages.status, 'new')),
+      this.db
+        .select({ value: count() })
+        .from(contactMessages)
+        .where(
+          and(
+            eq(contactMessages.isRead, false),
+            ne(contactMessages.status, 'spam'),
+          ),
+        ),
+    ]);
+    return {
+      new: Number(newRows[0]?.value ?? 0),
+      unread: Number(unreadRows[0]?.value ?? 0),
+    };
+  }
 }
+
+export type InboxDashboardCounts = {
+  unread: number;
+  new: number;
+};

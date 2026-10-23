@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -16,6 +17,10 @@ import {
   type ListMessagesQuery,
 } from './dto/list-messages-query.dto';
 import { messageIdParamSchema } from './dto/message-id-params.dto';
+import {
+  bulkUpdateMessagesBodySchema,
+  type BulkUpdateMessagesBody,
+} from './dto/bulk-update-messages-body.dto';
 import {
   updateMessageBodySchema,
   type UpdateMessageBody,
@@ -31,6 +36,14 @@ export class AdminMessagesController {
   @ApiOperation({ summary: 'List contact inbox messages (paginated)' })
   async list(@Query({ schema: listMessagesQuerySchema }) query: ListMessagesQuery) {
     return await this.messages.list(query);
+  }
+
+  @Post('bulk')
+  @ApiOperation({ summary: 'Bulk update message status or read flag' })
+  async bulkUpdate(
+    @Body({ schema: bulkUpdateMessagesBodySchema }) body: BulkUpdateMessagesBody,
+  ) {
+    return await this.messages.bulkUpdate(body);
   }
 
   @Get(':id')

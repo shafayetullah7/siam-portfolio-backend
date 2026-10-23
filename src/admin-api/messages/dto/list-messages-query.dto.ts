@@ -6,6 +6,8 @@ export const listMessagesQuerySchema = z.object({
   isRead: z.coerce.boolean().optional(),
   category: z.string().trim().min(1).max(100).optional(),
   q: z.string().trim().min(1).optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   excludeSpam: z.coerce.boolean().optional(),

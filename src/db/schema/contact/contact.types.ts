@@ -5,4 +5,6 @@ export type ContactMessageMetadata = {
   honeypotTriggered?: boolean;
   turnstile?: { success: boolean; errorCodes?: string[] };
   locale?: string;
+  /** Dev seed idempotency (`db/seed/contact.catalog.ts`). */
+  seedKey?: string;
 };

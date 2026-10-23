@@ -112,6 +112,7 @@ describe('SiteService.getPublicSite', () => {
       '/writing/essay-a',
       '/',
       '/about',
+      '/contact',
       '/pages/about-page',
     ]);
   });
@@ -288,5 +289,39 @@ describe('SiteService.updateSettings', () => {
     await expect(
       service.updateSettings({ faviconMediaId: 'media-1' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('persists contact settings fields', async () => {
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          limit: vi.fn().mockResolvedValue([settingsRow]),
+        })),
+      })),
+      update: vi.fn(() => ({
+        set: vi.fn((patch: Record<string, unknown>) => ({
+          where: vi.fn(() => ({
+            returning: vi.fn().mockResolvedValue([
+              { ...settingsRow, ...patch },
+            ]),
+          })),
+        })),
+      })),
+    };
+    const service = createSiteService(db);
+
+    const row = await service.updateSettings({
+      contactPageIntro: '  Hello  ',
+      contactFormEnabled: false,
+      contactCategories: ['A', 'A', ' B '],
+      contactPublicEmail: '',
+      contactShowEmailOnPage: false,
+    });
+
+    expect(row.contactPageIntro).toBe('Hello');
+    expect(row.contactFormEnabled).toBe(false);
+    expect(row.contactCategories).toEqual(['A', 'B']);
+    expect(row.contactPublicEmail).toBe(null);
+    expect(row.contactShowEmailOnPage).toBe(false);
   });
 });

@@ -9,6 +9,8 @@ export type ContactMessageListQuery = {
   isRead?: boolean;
   category?: string;
   q?: string;
+  from?: Date;
+  to?: Date;
   /** When true, omit rows with status `spam`. */
   excludeSpam?: boolean;
   page?: number;

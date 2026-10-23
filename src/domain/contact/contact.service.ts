@@ -1,4 +1,8 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { PaginatedResponse } from '../../common/pagination/paginated-response';
 import { SiteService } from '../site/site.service';
 import {
@@ -94,5 +98,25 @@ export class ContactService {
 
   async deleteMessage(id: string): Promise<void> {
     await this.repository.delete(id);
+  }
+
+  async bulkUpdateMessages(
+    ids: string[],
+    patch: Pick<AdminUpdateContactMessageInput, 'status' | 'isRead'>,
+  ): Promise<{ updated: number }> {
+    if (ids.length === 0) {
+      throw new BadRequestException('At least one message id is required');
+    }
+    if (ids.length > 100) {
+      throw new BadRequestException('Too many message ids (max 100)');
+    }
+    let updated = 0;
+    for (const id of ids) {
+      const current = await this.repository.findByIdOrThrow(id);
+      const merged = buildStatusPatch(current, patch);
+      await this.repository.update(id, merged);
+      updated += 1;
+    }
+    return { updated };
   }
 }

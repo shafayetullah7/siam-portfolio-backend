@@ -16,6 +16,7 @@ import { ResearchService } from '../research/research.service';
 import { SitePagesService } from '../site-pages/site-pages.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { toPublicContactConfig } from '../contact/contact-config.mapper';
+import { normalizeContactCategories } from './normalize-contact-categories';
 
 @Injectable()
 export class SiteService {
@@ -54,6 +55,15 @@ export class SiteService {
     writingHubIntro?: string | null;
     achievementsHubIntro?: string | null;
     experienceHubIntro?: string | null;
+    contactFormEnabled?: boolean;
+    contactPageIntro?: string | null;
+    contactCollaborationGuidance?: string | null;
+    contactResponseTimeNote?: string | null;
+    contactCategories?: string[];
+    contactConsentText?: string | null;
+    contactSuccessMessage?: string | null;
+    contactPublicEmail?: string | null;
+    contactShowEmailOnPage?: boolean;
     faviconUrl?: string | null;
     faviconMediaId?: string | null;
   }) {
@@ -84,6 +94,39 @@ export class SiteService {
     if (input.experienceHubIntro !== undefined) {
       const trimmed = input.experienceHubIntro?.trim() ?? '';
       patch.experienceHubIntro = trimmed === '' ? null : trimmed;
+    }
+    if (input.contactFormEnabled !== undefined) {
+      patch.contactFormEnabled = input.contactFormEnabled;
+    }
+    if (input.contactPageIntro !== undefined) {
+      const trimmed = input.contactPageIntro?.trim() ?? '';
+      patch.contactPageIntro = trimmed === '' ? null : trimmed;
+    }
+    if (input.contactCollaborationGuidance !== undefined) {
+      const trimmed = input.contactCollaborationGuidance?.trim() ?? '';
+      patch.contactCollaborationGuidance = trimmed === '' ? null : trimmed;
+    }
+    if (input.contactResponseTimeNote !== undefined) {
+      const trimmed = input.contactResponseTimeNote?.trim() ?? '';
+      patch.contactResponseTimeNote = trimmed === '' ? null : trimmed;
+    }
+    if (input.contactCategories !== undefined) {
+      patch.contactCategories = normalizeContactCategories(input.contactCategories);
+    }
+    if (input.contactConsentText !== undefined) {
+      const trimmed = input.contactConsentText?.trim() ?? '';
+      patch.contactConsentText = trimmed === '' ? null : trimmed;
+    }
+    if (input.contactSuccessMessage !== undefined) {
+      const trimmed = input.contactSuccessMessage?.trim() ?? '';
+      patch.contactSuccessMessage = trimmed === '' ? null : trimmed;
+    }
+    if (input.contactPublicEmail !== undefined) {
+      const trimmed = input.contactPublicEmail?.trim() ?? '';
+      patch.contactPublicEmail = trimmed === '' ? null : trimmed;
+    }
+    if (input.contactShowEmailOnPage !== undefined) {
+      patch.contactShowEmailOnPage = input.contactShowEmailOnPage;
     }
 
     // faviconMediaId wins over manual faviconUrl when both are sent.
@@ -218,6 +261,7 @@ export class SiteService {
         ...achievementPaths,
         '/',
         '/about',
+        '/contact',
         ...pageSlugs.map((s) => `/pages/${s}`),
       ],
     };

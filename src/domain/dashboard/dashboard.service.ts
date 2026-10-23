@@ -8,10 +8,16 @@ import { sitePages } from '../../db/schema/site-pages';
 import { media } from '../../db/schema/media';
 import { timelineEntries } from '../../db/schema/timeline/timeline-entries';
 import { articles } from '../../db/schema/writing/articles';
+import { ContactRepository } from '../contact/contact.repository';
+import { SiteService } from '../site/site.service';
 
 @Injectable()
 export class DashboardService {
-  constructor(@InjectDrizzle() private readonly db: NodePgDatabase) {}
+  constructor(
+    @InjectDrizzle() private readonly db: NodePgDatabase,
+    private readonly contactRepository: ContactRepository,
+    private readonly siteService: SiteService,
+  ) {}
 
   async getCounts() {
     const pages = await this.db.select().from(sitePages);
@@ -86,6 +92,8 @@ export class DashboardService {
     );
     const timelineCountBy = (status: string) =>
       timelineCounts.find((c) => c.status === status)?.total ?? 0;
+    const inboxCounts = await this.contactRepository.countInboxDashboard();
+    const settings = await this.siteService.getOrCreateSettings();
     return {
       pages: {
         draft: countBy('draft'),
@@ -118,6 +126,11 @@ export class DashboardService {
         archived: timelineCountBy('archived'),
       },
       media: mediaRows.length,
+      inbox: {
+        unread: inboxCounts.unread,
+        new: inboxCounts.new,
+        formEnabled: settings.contactFormEnabled,
+      },
     };
   }
 }

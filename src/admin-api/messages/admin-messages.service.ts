@@ -7,11 +7,32 @@ import type {
   MessageAdminDetail,
   MessageAdminListItem,
 } from './dto/message-admin-response.dto';
+import type { BulkUpdateMessagesBody } from './dto/bulk-update-messages-body.dto';
 import type { UpdateMessageBody } from './dto/update-message-body.dto';
 import {
   toMessageAdminDetail,
   toMessageAdminListItem,
 } from './message-admin.mapper';
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+}
+
+function endOfUtcDay(date: Date): Date {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
+  );
+}
 
 @Injectable()
 export class AdminMessagesService {
@@ -25,6 +46,8 @@ export class AdminMessagesService {
       isRead: query.isRead,
       category: query.category,
       q: query.q,
+      from: query.from ? startOfUtcDay(query.from) : undefined,
+      to: query.to ? endOfUtcDay(query.to) : undefined,
       page: query.page,
       limit: query.limit,
       excludeSpam,
@@ -53,5 +76,9 @@ export class AdminMessagesService {
 
   async delete(id: string): Promise<void> {
     await this.contact.deleteMessage(id);
+  }
+
+  async bulkUpdate(body: BulkUpdateMessagesBody): Promise<{ updated: number }> {
+    return await this.contact.bulkUpdateMessages(body.ids, body.patch);
   }
 }

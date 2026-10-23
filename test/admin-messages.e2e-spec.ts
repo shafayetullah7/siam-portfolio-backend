@@ -51,6 +51,7 @@ describe('Admin messages (e2e)', () => {
   const findByIdAdmin = vi.fn();
   const updateMessage = vi.fn();
   const deleteMessage = vi.fn();
+  const bulkUpdateMessages = vi.fn();
 
   beforeEach(async () => {
     row = messageRow();
@@ -58,6 +59,8 @@ describe('Admin messages (e2e)', () => {
     findByIdAdmin.mockReset();
     updateMessage.mockReset();
     deleteMessage.mockReset();
+    bulkUpdateMessages.mockReset();
+    bulkUpdateMessages.mockResolvedValue({ updated: 2 });
 
     listInbox.mockImplementation(async (query = {}) => {
       const items =
@@ -94,7 +97,13 @@ describe('Admin messages (e2e)', () => {
         AdminMessagesService,
         {
           provide: ContactService,
-          useValue: { listInbox, findByIdAdmin, updateMessage, deleteMessage },
+          useValue: {
+            listInbox,
+            findByIdAdmin,
+            updateMessage,
+            deleteMessage,
+            bulkUpdateMessages,
+          },
         },
       ],
     })
@@ -178,6 +187,37 @@ describe('Admin messages (e2e)', () => {
       .patch(`/api/v1/admin/messages/${MESSAGE_ID}`)
       .send({})
       .expect(400);
+  });
+
+  it('bulk updates messages', async () => {
+    const id2 = '00000000-0000-4000-8000-000000000088';
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/admin/messages/bulk')
+      .send({
+        ids: [MESSAGE_ID, id2],
+        patch: { isRead: true },
+      })
+      .expect(201);
+
+    expect(res.body.data.updated).toBe(2);
+    expect(bulkUpdateMessages).toHaveBeenCalledWith(
+      [MESSAGE_ID, id2],
+      { isRead: true },
+    );
+  });
+
+  it('passes from and to list filters', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/messages')
+      .query({ from: '2026-01-01', to: '2026-01-31' })
+      .expect(200);
+
+    expect(listInbox).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: expect.any(Date),
+        to: expect.any(Date),
+      }),
+    );
   });
 });
 

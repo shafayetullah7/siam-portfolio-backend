@@ -102,6 +102,23 @@ describe('ContactRepository', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('countInboxDashboard returns new and unread totals', async () => {
+    let selectCall = 0;
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn().mockImplementation(async () => {
+            selectCall += 1;
+            return [{ value: selectCall === 1 ? 3 : 5 }];
+          }),
+        })),
+      })),
+    };
+    const repo = new ContactRepository(db as never);
+    const counts = await repo.countInboxDashboard();
+    expect(counts).toEqual({ new: 3, unread: 5 });
+  });
+
   it('delete throws NotFoundException when row missing', async () => {
     const db = {
       delete: vi.fn(() => ({

@@ -124,3 +124,16 @@ describe('ContactService.findByIdAdmin', () => {
     );
   });
 });
+
+describe('ContactService.bulkUpdateMessages', () => {
+  it('updates each id with status patch', async () => {
+    const { service, repository } = createService();
+    const result = await service.bulkUpdateMessages(
+      ['msg-1', 'msg-2'],
+      { isRead: true },
+    );
+    expect(result.updated).toBe(2);
+    expect(repository.findByIdOrThrow).toHaveBeenCalledTimes(2);
+    expect(repository.update).toHaveBeenCalledTimes(2);
+  });
+});
