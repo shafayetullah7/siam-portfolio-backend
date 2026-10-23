@@ -14,4 +14,5 @@ export * from './publication-supplements';
 export * from './research';
 export * from './site';
 export * from './site-pages';
+export * from './timeline';
 export * from './writing';
