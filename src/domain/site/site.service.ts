@@ -9,6 +9,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { media } from '../../db/schema/media';
 import { navItems, siteSettings } from '../../db/schema/site';
 import { MEDIA_IMAGE_MIME_TYPES } from '../media/media-upload.constants';
+import { PublicationsService } from '../publications/publications.service';
 import { ResearchService } from '../research/research.service';
 import { SitePagesService } from '../site-pages/site-pages.service';
 
@@ -19,6 +20,7 @@ export class SiteService {
     private readonly db: NodePgDatabase,
     private readonly sitePages: SitePagesService,
     private readonly research: ResearchService,
+    private readonly publications: PublicationsService,
   ) {}
 
   async getOrCreateSettings() {
@@ -132,13 +134,18 @@ export class SiteService {
   async getPublicSite() {
     const settings = await this.getOrCreateSettings();
     const nav = (await this.listNav()).filter((n) => n.visible);
-    const [pageSlugs, researchSlugs] = await Promise.all([
+    const [pageSlugs, researchSlugs, publicationSlugs] = await Promise.all([
       this.sitePages.listPublishedSlugs(),
       this.research.listPublishedSlugs(),
+      this.publications.listPublishedSlugs(),
     ]);
     const researchPaths = [
       '/research',
       ...researchSlugs.map((s) => `/research/${s}`),
+    ];
+    const publicationPaths = [
+      '/publications',
+      ...publicationSlugs.map((s) => `/publications/${s}`),
     ];
     return {
       siteName: settings.siteName,
@@ -148,6 +155,7 @@ export class SiteService {
       nav,
       sitemapPaths: [
         ...researchPaths,
+        ...publicationPaths,
         '/',
         '/about',
         ...pageSlugs.map((s) => `/pages/${s}`),

@@ -236,4 +236,40 @@ describe('MediaService', () => {
       );
     });
   });
+
+  describe('assertPdfMediaId', () => {
+    it('returns row for pdf mime', async () => {
+      const db = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn().mockResolvedValue([
+                { ...mediaRow, mimeType: 'application/pdf' },
+              ]),
+            })),
+          })),
+        })),
+      } as never;
+      const svc = new MediaService(db, cloudinary);
+      await expect(svc.assertPdfMediaId('id-1')).resolves.toMatchObject({
+        mimeType: 'application/pdf',
+      });
+    });
+
+    it('rejects image mime', async () => {
+      const db = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn().mockResolvedValue([mediaRow]),
+            })),
+          })),
+        })),
+      } as never;
+      const svc = new MediaService(db, cloudinary);
+      await expect(svc.assertPdfMediaId('id-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+  });
 });

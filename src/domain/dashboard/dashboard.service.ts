@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { eq } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { publications } from '../../db/schema/publications';
 import { sitePages } from '../../db/schema/site-pages';
 import { media } from '../../db/schema/media';
 
@@ -14,12 +15,35 @@ export class DashboardService {
     const countBy = (status: string) =>
       pages.filter((p) => p.publishStatus === status).length;
     const mediaRows = await this.db.select().from(media);
+    const publicationStatuses = [
+      'draft',
+      'published',
+      'scheduled',
+      'archived',
+    ] as const;
+    const publicationCounts = await Promise.all(
+      publicationStatuses.map(async (status) => {
+        const [row] = await this.db
+          .select({ total: count() })
+          .from(publications)
+          .where(eq(publications.publishStatus, status));
+        return { status, total: Number(row?.total ?? 0) };
+      }),
+    );
+    const publicationCountBy = (status: string) =>
+      publicationCounts.find((c) => c.status === status)?.total ?? 0;
     return {
       pages: {
         draft: countBy('draft'),
         published: countBy('published'),
         scheduled: countBy('scheduled'),
         archived: countBy('archived'),
+      },
+      publications: {
+        draft: publicationCountBy('draft'),
+        published: publicationCountBy('published'),
+        scheduled: publicationCountBy('scheduled'),
+        archived: publicationCountBy('archived'),
       },
       media: mediaRows.length,
     };

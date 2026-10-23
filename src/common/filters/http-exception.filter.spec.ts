@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { ThrottlerException } from '@nestjs/throttler';
 import { describe, expect, it, vi } from 'vitest';
+import { DrizzleQueryError } from 'drizzle-orm';
+import { DATABASE_SCHEMA_OUT_OF_DATE_MESSAGE } from '../database/database-client-error';
 import { HttpExceptionFilter } from './http-exception.filter';
 
 function mockHost() {
@@ -75,6 +77,20 @@ describe('HttpExceptionFilter', () => {
       message: 'Validation failed',
       statusCode: 400,
       validationErrors: [{ field: 'email', message: 'Invalid email' }],
+    });
+  });
+
+  it('maps schema drift query errors to 503 with migration hint', () => {
+    const { host, status, json } = mockHost();
+    const pg = Object.assign(new Error('column "pdf_media_id" does not exist'), {
+      code: '42703',
+    });
+    filter.catch(new DrizzleQueryError('select', [], pg), host);
+    expect(status).toHaveBeenCalledWith(503);
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      message: DATABASE_SCHEMA_OUT_OF_DATE_MESSAGE,
+      statusCode: 503,
     });
   });
 

@@ -4,6 +4,8 @@ export * from './media';
 export * from './profile-home';
 export * from './projects';
 export * from './publications';
+export * from './publication-authors';
+export * from './publication-supplements';
 export * from './research';
 export * from './site';
 export * from './site-pages';

@@ -9,6 +9,8 @@ import type { PublishStatus } from '../src/common/publishing/publish-status';
 import { MediaService } from '../src/domain/media/media.service';
 import { ProjectsService } from '../src/domain/projects/projects.service';
 import { PublicationsService } from '../src/domain/publications/publications.service';
+import { publicationRow } from '../src/domain/publications/publications.service.spec';
+import type { PublicationRow } from '../src/domain/publications/publications.types';
 import { ResearchService } from '../src/domain/research/research.service';
 import { SiteService } from '../src/domain/site/site.service';
 import type { ResearchThemeRow } from '../src/domain/research/research.types';
@@ -51,9 +53,22 @@ function themeRow(
   };
 }
 
+const LINKED_PUB_ID = '00000000-0000-4000-8000-000000000020';
+
 describe('Public research themes (e2e)', () => {
   let app: INestApplication<App>;
   const themes = new Map<string, ResearchThemeRow>();
+  let linkedPublication: PublicationRow = publicationRow({
+    id: LINKED_PUB_ID,
+    slug: 'linked-paper',
+    title: 'Linked Paper',
+    authorsShort: 'Author et al.',
+    year: 2024,
+    venue: 'NeurIPS',
+    publicationType: 'conference',
+    publishStatus: 'published',
+    publishedAt: new Date(),
+  });
 
   const researchMock: Partial<ResearchService> = {
     findPublishedBySlug: vi.fn(async (slug: string) => {
@@ -102,7 +117,7 @@ describe('Public research themes (e2e)', () => {
       if (themeId !== '00000000-0000-4000-8000-000000000001') {
         return [];
       }
-      return ['00000000-0000-4000-8000-000000000020'];
+      return [LINKED_PUB_ID];
     }),
     listResources: vi.fn(async (themeId: string) => {
       if (themeId !== '00000000-0000-4000-8000-000000000001') {
@@ -141,14 +156,24 @@ describe('Public research themes (e2e)', () => {
   const publicationsMock: Partial<PublicationsService> = {
     listPublishedCardsByIds: vi.fn(async (ids: string[]) => {
       if (ids.length === 0) return [];
+      if (!ids.includes(LINKED_PUB_ID)) return [];
+      if (
+        !isPubliclyVisible(
+          linkedPublication.publishStatus as PublishStatus,
+          linkedPublication.scheduledAt,
+        )
+      ) {
+        return [];
+      }
       return [
         {
-          slug: 'linked-paper',
-          title: 'Linked Paper',
-          authorsShort: 'Author et al.',
-          year: 2024,
-          venue: 'NeurIPS',
-          href: '/publications/linked-paper',
+          slug: linkedPublication.slug,
+          title: linkedPublication.title,
+          authorsShort: linkedPublication.authorsShort,
+          year: linkedPublication.year,
+          venue: linkedPublication.venue,
+          publicationType: linkedPublication.publicationType,
+          href: `/publications/${linkedPublication.slug}`,
         },
       ];
     }),
@@ -200,6 +225,17 @@ describe('Public research themes (e2e)', () => {
 
   beforeEach(async () => {
     themes.clear();
+    linkedPublication = publicationRow({
+      id: LINKED_PUB_ID,
+      slug: 'linked-paper',
+      title: 'Linked Paper',
+      authorsShort: 'Author et al.',
+      year: 2024,
+      venue: 'NeurIPS',
+      publicationType: 'conference',
+      publishStatus: 'published',
+      publishedAt: new Date(),
+    });
     themes.set(
       'draft-theme',
       themeRow({ slug: 'draft-theme', title: 'Draft', publishStatus: 'draft' }),
@@ -332,6 +368,7 @@ describe('Public research themes (e2e)', () => {
         authorsShort: 'Author et al.',
         year: 2024,
         venue: 'NeurIPS',
+        publicationType: 'conference',
         href: '/publications/linked-paper',
       },
     ]);
@@ -346,5 +383,41 @@ describe('Public research themes (e2e)', () => {
 
     expect(res.body.data.prevSlug).toBeUndefined();
     expect(res.body.data.nextSlug).toBe('live-theme');
+  });
+
+  it('omits draft linked publication from theme detail; shows when published', async () => {
+    linkedPublication = publicationRow({
+      ...linkedPublication,
+      publishStatus: 'draft',
+      publishedAt: null,
+    });
+
+    const draftRes = await request(app.getHttpServer())
+      .get('/api/v1/public/research-themes/live-theme')
+      .expect(200);
+
+    expect(draftRes.body.data.related?.publications ?? []).toEqual([]);
+
+    linkedPublication = publicationRow({
+      ...linkedPublication,
+      publishStatus: 'published',
+      publishedAt: new Date(),
+    });
+
+    const liveRes = await request(app.getHttpServer())
+      .get('/api/v1/public/research-themes/live-theme')
+      .expect(200);
+
+    expect(liveRes.body.data.related?.publications).toEqual([
+      {
+        slug: 'linked-paper',
+        title: 'Linked Paper',
+        authorsShort: 'Author et al.',
+        year: 2024,
+        venue: 'NeurIPS',
+        publicationType: 'conference',
+        href: '/publications/linked-paper',
+      },
+    ]);
   });
 });

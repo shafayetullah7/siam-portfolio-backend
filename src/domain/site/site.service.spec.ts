@@ -30,7 +30,13 @@ const imageMedia = {
 function createSiteService(db: unknown) {
   const sitePages = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
   const research = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
-  return new SiteService(db as never, sitePages as never, research as never);
+  const publications = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
+  return new SiteService(
+    db as never,
+    sitePages as never,
+    research as never,
+    publications as never,
+  );
 }
 
 describe('SiteService.getPublicSite', () => {
@@ -48,10 +54,14 @@ describe('SiteService.getPublicSite', () => {
     const research = {
       listPublishedSlugs: vi.fn().mockResolvedValue(['alpha', 'beta']),
     };
+    const publications = {
+      listPublishedSlugs: vi.fn().mockResolvedValue(['paper-a']),
+    };
     const service = new SiteService(
       db as never,
       sitePages as never,
       research as never,
+      publications as never,
     );
     vi.spyOn(service, 'listNav').mockResolvedValue([]);
 
@@ -60,6 +70,8 @@ describe('SiteService.getPublicSite', () => {
       '/research',
       '/research/alpha',
       '/research/beta',
+      '/publications',
+      '/publications/paper-a',
       '/',
       '/about',
       '/pages/about-page',

@@ -271,14 +271,16 @@ User-facing entities that appear on the public site: **`slug`**, **`publishStatu
 - **Research cover:** `coverMediaId` on admin create/update must reference an image in `media` (`MediaService.assertImageMediaId`). Public list/detail resolve `url` and `alt` via `MediaService.findById` (not stored on the theme row).
 - **Public research (P03/P04):** `GET public/research-themes` and `GET :slug` are the runtime source for `/research` and `/research/:slug`; list cards expose `relatedCounts.publications` and `relatedCounts.projects` from theme junction links (published related items only). Public detail may include `prevSlug` / `nextSlug` (adjacent published themes by `sortOrder`, then title). `related.talks` stays empty until M11.
 - **Research sitemap:** `getPublicSite().sitemapPaths` includes `/research` and `/research/{slug}` for each published theme (`ResearchService.listPublishedSlugs`).
-- **Dev seed:** `pnpm run db:seed` (non-production) runs `seedDevAdmin` then draft themes from `src/db/seed/research-themes.catalog.ts` (mirror of frontend catalog; Docker-safe). Publish via admin.
-- **Minimal publications (R13):** `publications` table + `GET admin/publications` (picker search); full M6 admin UI not shipped yet.
+- **Publications sitemap:** `getPublicSite().sitemapPaths` includes `/publications` and `/publications/{slug}` for each published publication (`PublicationsService.listPublishedSlugs`).
+- **Dev seed:** `pnpm run db:seed` (non-production) runs `seedDevAdmin`, draft research themes from `src/db/seed/research-themes.catalog.ts`, and publications from `src/db/seed/publications.catalog.ts` (mix of draft/published). Publish remaining drafts via `/admin/publications`.
+- **Home publication highlights:** `GET public/home` includes `selectedPublications[]` from published rows with `featuredOnHome` (max 4 returned), same pattern as `researchFocus`.
 - **Minimal projects (R14):** `projects` table + `GET admin/projects` (picker search); full M7 admin UI not shipped yet.
 - **Theme relations:** `GET/PUT admin/research/:id/publications` and `.../projects` ordered junctions; public detail `related.publications[]` / `related.projects[]`.
 - **Research resources:** child table `research_theme_resources` (`label`, HTTPS `url`, `resourceType`, `sortOrder`). Admin create/update replace all rows for the theme when `resources` is sent; revision snapshots include the resource list. Public detail returns ordered resources (no internal ids).
 - **Research hub intro:** `site_settings.research_hub_intro` (nullable text), editable in admin site settings. `GET public/research-themes` returns `{ intro, items }` (cards in `items`).
 - **Home research focus:** `GET public/home` includes `researchFocus[]` from published themes with `featuredOnHome` (max 6 returned, max 6 may be flagged in admin). At most six themes may have `featuredOnHome` at once across all publish statuses.
 - **Research publish checklist:** `GET admin/research/:id/publish-check` returns `{ errors, warnings }` from `researchPublishChecklist`. `POST .../publish` accepts optional `{ confirmWarnings: true }`; checklist **errors** always block; **warnings** require confirmation (`code: PUBLISH_WARNINGS` when omitted).
+- **Publication publish checklist:** `GET admin/publications/:id/publish-check` returns `{ errors, warnings }` from `publicationPublishChecklist`. `POST .../publish` accepts optional `{ confirmWarnings: true }`; same error/warning gating as research (`PUBLISH_BLOCKED` / `PUBLISH_WARNINGS` on the exception body).
 - **Publications:** preserve author order; distinguish preprint vs published in API fields; citation/BibTeX from verified metadata only.
 
 ## OpenAPI

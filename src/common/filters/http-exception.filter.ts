@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ThrottlerException } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
+import { databaseClientErrorMessage } from '../database/database-client-error';
 import { apiFailure } from '../http/api-response';
 import { parseHttpExceptionBody } from '../http/parse-http-exception-body';
 
@@ -30,6 +31,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
       );
       response.status(HttpStatus.TOO_MANY_REQUESTS).json(
         apiFailure(THROTTLE_MESSAGE, HttpStatus.TOO_MANY_REQUESTS),
+      );
+      return;
+    }
+
+    const databaseMessage = databaseClientErrorMessage(exception);
+    if (databaseMessage) {
+      this.logException(
+        exception,
+        host,
+        HttpStatus.SERVICE_UNAVAILABLE,
+        databaseMessage,
+      );
+      response.status(HttpStatus.SERVICE_UNAVAILABLE).json(
+        apiFailure(databaseMessage, HttpStatus.SERVICE_UNAVAILABLE),
       );
       return;
     }

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { PublicationsService } from '../domain/publications/publications.service';
 import { ResearchService } from '../domain/research/research.service';
 import { SitePagesService } from '../domain/site-pages/site-pages.service';
 
@@ -10,6 +11,7 @@ export class PublishSchedulerService {
   constructor(
     private readonly sitePages: SitePagesService,
     private readonly research: ResearchService,
+    private readonly publications: PublicationsService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -21,6 +23,10 @@ export class PublishSchedulerService {
     const themeCount = await this.research.publishDueScheduled();
     if (themeCount > 0) {
       this.logger.log(`Published ${themeCount} scheduled research theme(s)`);
+    }
+    const publicationCount = await this.publications.publishDueScheduled();
+    if (publicationCount > 0) {
+      this.logger.log(`Published ${publicationCount} scheduled publication(s)`);
     }
   }
 }

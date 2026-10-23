@@ -120,6 +120,16 @@ export class MediaService {
     return row;
   }
 
+  async assertPdfMediaId(id: string): Promise<MediaRow> {
+    const row = await this.findById(id);
+    if (row.mimeType !== 'application/pdf') {
+      throw new BadRequestException(
+        'Publication PDF must be a PDF from the media library',
+      );
+    }
+    return row;
+  }
+
   async updateMetadata(
     id: string,
     patch: UpdateMediaMetadataInput,

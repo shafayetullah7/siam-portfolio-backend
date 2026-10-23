@@ -1,7 +1,10 @@
 # compiled output
 /dist
-/node_modules
 /build
+/node_modules
+
+# Local pnpm store (if store-dir points inside the repo — do not commit)
+.pnpm-store/
 
 # Logs
 logs
@@ -14,6 +17,7 @@ lerna-debug.log*
 
 # OS
 .DS_Store
+Thumbs.db
 
 # Tests
 /coverage
@@ -35,12 +39,10 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# dotenv environment variable files
+# dotenv environment variable files (keep .env.example committed)
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env.*
+!.env.example
 
 # temp directory
 .temp
@@ -54,3 +56,6 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# TypeScript incremental
+*.tsbuildinfo

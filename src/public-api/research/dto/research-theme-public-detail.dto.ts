@@ -28,7 +28,16 @@ const publicationCardSchema = z.object({
   authorsShort: z.string(),
   year: z.number().int(),
   venue: z.string(),
+  publicationType: z.enum([
+    'journal',
+    'conference',
+    'preprint',
+    'workshop',
+    'thesis',
+    'other',
+  ]),
   significance: z.string().optional(),
+  doi: z.string().optional(),
   href: z.string(),
 });
 

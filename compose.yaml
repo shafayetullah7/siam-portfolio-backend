@@ -5,6 +5,8 @@ services:
       target: ${DOCKER_BUILD_TARGET:-development}
     env_file: .env
     environment:
+      # pnpm may need to replace /app/node_modules (anonymous volume) after lockfile changes.
+      CI: "true"
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     ports:
       - '${APP_EXTERNAL_PORT:-5000}:${PORT:-5000}'
