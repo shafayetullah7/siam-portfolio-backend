@@ -32,12 +32,14 @@ function createSiteService(db: unknown) {
   const research = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
   const publications = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
   const projects = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
+  const writing = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
   return new SiteService(
     db as never,
     sitePages as never,
     research as never,
     publications as never,
     projects as never,
+    writing as never,
   );
 }
 
@@ -62,12 +64,16 @@ describe('SiteService.getPublicSite', () => {
     const projects = {
       listPublishedSlugs: vi.fn().mockResolvedValue(['case-study']),
     };
+    const writing = {
+      listPublishedSlugs: vi.fn().mockResolvedValue(['essay-a']),
+    };
     const service = new SiteService(
       db as never,
       sitePages as never,
       research as never,
       publications as never,
       projects as never,
+      writing as never,
     );
     vi.spyOn(service, 'listNav').mockResolvedValue([]);
 
@@ -80,10 +86,35 @@ describe('SiteService.getPublicSite', () => {
       '/publications/paper-a',
       '/projects',
       '/projects/case-study',
+      '/writing',
+      '/writing/essay-a',
       '/',
       '/about',
       '/pages/about-page',
     ]);
+  });
+
+  it('omits writing paths when no published articles', async () => {
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          limit: vi.fn().mockResolvedValue([settingsRow]),
+        })),
+      })),
+    };
+    const writing = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
+    const service = new SiteService(
+      db as never,
+      { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
+      { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
+      { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
+      { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
+      writing as never,
+    );
+    vi.spyOn(service, 'listNav').mockResolvedValue([]);
+
+    const site = await service.getPublicSite();
+    expect(site.sitemapPaths.some((p) => p === '/writing')).toBe(false);
   });
 });
 

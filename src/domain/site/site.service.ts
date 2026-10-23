@@ -10,6 +10,7 @@ import { media } from '../../db/schema/media';
 import { navItems, siteSettings } from '../../db/schema/site';
 import { MEDIA_IMAGE_MIME_TYPES } from '../media/media-upload.constants';
 import { ProjectsService } from '../projects/projects.service';
+import { WritingService } from '../writing/writing.service';
 import { PublicationsService } from '../publications/publications.service';
 import { ResearchService } from '../research/research.service';
 import { SitePagesService } from '../site-pages/site-pages.service';
@@ -23,6 +24,7 @@ export class SiteService {
     private readonly research: ResearchService,
     private readonly publications: PublicationsService,
     private readonly projects: ProjectsService,
+    private readonly writing: WritingService,
   ) {}
 
   async getOrCreateSettings() {
@@ -141,12 +143,13 @@ export class SiteService {
   async getPublicSite() {
     const settings = await this.getOrCreateSettings();
     const nav = (await this.listNav()).filter((n) => n.visible);
-    const [pageSlugs, researchSlugs, publicationSlugs, projectSlugs] =
+    const [pageSlugs, researchSlugs, publicationSlugs, projectSlugs, writingSlugs] =
       await Promise.all([
         this.sitePages.listPublishedSlugs(),
         this.research.listPublishedSlugs(),
         this.publications.listPublishedSlugs(),
         this.projects.listPublishedSlugs(),
+        this.writing.listPublishedSlugs(),
       ]);
     const researchPaths = [
       '/research',
@@ -160,6 +163,10 @@ export class SiteService {
       '/projects',
       ...projectSlugs.map((s) => `/projects/${s}`),
     ];
+    const writingPaths =
+      writingSlugs.length > 0
+        ? ['/writing', ...writingSlugs.map((s) => `/writing/${s}`)]
+        : [];
     return {
       siteName: settings.siteName,
       defaultMetaDescription: settings.defaultMetaDescription,
@@ -170,6 +177,7 @@ export class SiteService {
         ...researchPaths,
         ...publicationPaths,
         ...projectPaths,
+        ...writingPaths,
         '/',
         '/about',
         ...pageSlugs.map((s) => `/pages/${s}`),

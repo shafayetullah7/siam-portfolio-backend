@@ -16,6 +16,8 @@ export const writingPublicDetailSchema = writingPublicCardSchema
     related: writingPublicRelatedSchema,
     seoTitle: z.string().nullable().optional(),
     seoDescription: z.string().nullable().optional(),
+    prevSlug: z.string().optional(),
+    nextSlug: z.string().optional(),
   })
   .meta({ title: 'WritingPublicDetail' });
 

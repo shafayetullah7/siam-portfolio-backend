@@ -112,7 +112,13 @@ export class PublicWritingService {
   async getBySlug(slug: string): Promise<WritingPublicDetail> {
     const row = await this.writing.findPublishedBySlug(slug);
     const cache = new Map<string, CoverResolved>();
-    return this.detailFromRow(row, cache);
+    const detail = await this.detailFromRow(row, cache);
+    const adjacent = await this.writing.adjacentPublishedSlugs(slug);
+    return {
+      ...detail,
+      ...(adjacent.prevSlug ? { prevSlug: adjacent.prevSlug } : {}),
+      ...(adjacent.nextSlug ? { nextSlug: adjacent.nextSlug } : {}),
+    };
   }
 
   async previewById(id: string): Promise<WritingPublicDetail> {

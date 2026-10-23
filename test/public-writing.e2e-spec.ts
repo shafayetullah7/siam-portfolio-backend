@@ -70,6 +70,20 @@ describe('Public writing (e2e)', () => {
       const service = new WritingService({} as never, {} as never);
       return service.toPublicDetail(row);
     }),
+    adjacentPublishedSlugs: vi.fn(async (slug: string) => {
+      const slugs = visibleRows()
+        .sort(
+          (a, b) =>
+            (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
+        )
+        .map((r) => r.slug);
+      const index = slugs.indexOf(slug);
+      if (index === -1) return {};
+      return {
+        ...(index > 0 ? { prevSlug: slugs[index - 1] } : {}),
+        ...(index < slugs.length - 1 ? { nextSlug: slugs[index + 1] } : {}),
+      };
+    }),
   };
 
   const mediaMock: Partial<MediaService> = {
@@ -183,6 +197,42 @@ describe('Public writing (e2e)', () => {
     await request(app.getHttpServer())
       .get('/api/v1/public/writing/draft')
       .expect(404);
+  });
+
+  it('includes adjacent slugs on detail by publish order', async () => {
+    bySlug.clear();
+    const older = new Date('2024-01-01');
+    const newer = new Date('2024-06-01');
+    bySlug.set(
+      'older-article',
+      articleRow({
+        slug: 'older-article',
+        publishStatus: 'published',
+        publishedAt: older,
+      }),
+    );
+    bySlug.set(
+      'newer-article',
+      articleRow({
+        slug: 'newer-article',
+        publishStatus: 'published',
+        publishedAt: newer,
+      }),
+    );
+
+    const middle = await request(app.getHttpServer())
+      .get('/api/v1/public/writing/older-article')
+      .expect(200);
+
+    expect(middle.body.data.prevSlug).toBe('newer-article');
+    expect(middle.body.data.nextSlug).toBeUndefined();
+
+    const newest = await request(app.getHttpServer())
+      .get('/api/v1/public/writing/newer-article')
+      .expect(200);
+
+    expect(newest.body.data.prevSlug).toBeUndefined();
+    expect(newest.body.data.nextSlug).toBe('older-article');
   });
 
   it('omits cover when media alt is empty', async () => {

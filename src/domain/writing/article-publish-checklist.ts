@@ -30,6 +30,12 @@ export function markdownFencesBalanced(body: string): boolean {
   return matches.length % 2 === 0;
 }
 
+export function displayMathDelimitersBalanced(body: string): boolean {
+  const matches = body.match(/\$\$/g);
+  if (!matches) return true;
+  return matches.length % 2 === 0;
+}
+
 export function bodyContainsHttpLinks(body: string): boolean {
   return /http:\/\//i.test(body);
 }
@@ -72,6 +78,13 @@ export function articlePublishChecklist(
       errors.push({
         code: 'markdown_invalid',
         message: 'Body has unclosed Markdown code fences (```)',
+      });
+    }
+    if (!displayMathDelimitersBalanced(body)) {
+      warnings.push({
+        code: 'math_delimiters_unbalanced',
+        message:
+          'Body has an odd number of $$ display-math delimiters. Check math blocks.',
       });
     }
   }

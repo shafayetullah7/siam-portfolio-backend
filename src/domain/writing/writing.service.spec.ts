@@ -249,6 +249,25 @@ describe('WritingService.listAdmin', () => {
   });
 });
 
+describe('WritingService.adjacentPublishedSlugs', () => {
+  it('returns prev and next slugs in publish order', async () => {
+    const service = writingService({} as never);
+    vi.spyOn(service, 'listPublishedSlugs').mockResolvedValue([
+      'newest',
+      'middle',
+      'oldest',
+    ]);
+    const adjacent = await service.adjacentPublishedSlugs('middle');
+    expect(adjacent).toEqual({ prevSlug: 'newest', nextSlug: 'oldest' });
+  });
+
+  it('returns empty when slug not in list', async () => {
+    const service = writingService({} as never);
+    vi.spyOn(service, 'listPublishedSlugs').mockResolvedValue(['only']);
+    expect(await service.adjacentPublishedSlugs('missing')).toEqual({});
+  });
+});
+
 describe('WritingService lifecycle', () => {
   it('publish sets publishedAt and status published', async () => {
     const row = articleRow({

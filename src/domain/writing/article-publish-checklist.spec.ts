@@ -35,6 +35,16 @@ describe('articlePublishChecklist', () => {
     );
   });
 
+  it('warns on unbalanced display math delimiters', () => {
+    const result = articlePublishChecklist(
+      articleRow({ body: `${longBody(100)} $$\n x^2` }),
+      {},
+    );
+    expect(
+      result.warnings.some((w) => w.code === 'math_delimiters_unbalanced'),
+    ).toBe(true);
+  });
+
   it('warns when tags are missing', () => {
     const result = articlePublishChecklist(
       articleRow({ body: longBody(100), tags: null }),

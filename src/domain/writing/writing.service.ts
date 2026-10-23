@@ -613,4 +613,19 @@ export class WritingService {
     const rows = await this.listPublished(now);
     return rows.map((row) => row.slug);
   }
+
+  async adjacentPublishedSlugs(
+    slug: string,
+    now = new Date(),
+  ): Promise<{ prevSlug?: string; nextSlug?: string }> {
+    const slugs = await this.listPublishedSlugs(now);
+    const index = slugs.indexOf(slug);
+    if (index === -1) {
+      return {};
+    }
+    return {
+      ...(index > 0 ? { prevSlug: slugs[index - 1] } : {}),
+      ...(index < slugs.length - 1 ? { nextSlug: slugs[index + 1] } : {}),
+    };
+  }
 }
