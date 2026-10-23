@@ -5,6 +5,7 @@ import { WritingService } from '../domain/writing/writing.service';
 import { PublicationsService } from '../domain/publications/publications.service';
 import { ResearchService } from '../domain/research/research.service';
 import { SitePagesService } from '../domain/site-pages/site-pages.service';
+import { TimelineService } from '../domain/timeline/timeline.service';
 
 @Injectable()
 export class PublishSchedulerService {
@@ -16,6 +17,7 @@ export class PublishSchedulerService {
     private readonly publications: PublicationsService,
     private readonly projects: ProjectsService,
     private readonly writing: WritingService,
+    private readonly timeline: TimelineService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -39,6 +41,10 @@ export class PublishSchedulerService {
     const articleCount = await this.writing.publishDueScheduled();
     if (articleCount > 0) {
       this.logger.log(`Published ${articleCount} scheduled article(s)`);
+    }
+    const timelineCount = await this.timeline.publishDueScheduled();
+    if (timelineCount > 0) {
+      this.logger.log(`Published ${timelineCount} scheduled timeline entry(ies)`);
     }
   }
 }

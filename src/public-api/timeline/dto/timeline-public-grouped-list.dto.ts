@@ -8,6 +8,7 @@ export const timelinePublicSectionSchema = z.object({
 });
 
 export const timelinePublicGroupedListSchema = z.object({
+  intro: z.string().nullable().optional(),
   sections: z.array(timelinePublicSectionSchema),
 });
 

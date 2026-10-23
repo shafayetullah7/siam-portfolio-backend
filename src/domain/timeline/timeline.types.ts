@@ -58,6 +58,10 @@ export type ReplaceEntryMediaItem = {
 
 export type ReplaceEntryMediaInput = ReplaceEntryMediaItem[];
 
+export type PublishTimelineOptions = {
+  confirmWarnings?: boolean;
+};
+
 export type TimelinePublicImage = {
   url: string;
   alt: string;
@@ -80,6 +84,7 @@ export type TimelinePublicCard = {
   proofUrl: string | null;
   images: TimelinePublicImage[];
   href?: string;
+  expiresAt?: string | null;
 };
 
 export type TimelinePublicDetail = TimelinePublicCard & {

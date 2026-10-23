@@ -15,6 +15,7 @@ export const timelinePublicCardSchema = z.object({
   featured: z.boolean(),
   proofUrl: z.string().nullable(),
   href: z.string().optional(),
+  expiresAt: z.string().nullable().optional(),
   images: z.array(timelinePublicImageSchema),
 });
 

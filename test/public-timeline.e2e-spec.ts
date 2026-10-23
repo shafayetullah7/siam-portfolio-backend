@@ -5,6 +5,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { ApiEnvelopeInterceptor } from '../src/common/interceptors/api-envelope.interceptor';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { SiteService } from '../src/domain/site/site.service';
 import { TimelineService } from '../src/domain/timeline/timeline.service';
 import type {
   TimelinePublicCard,
@@ -81,6 +82,14 @@ describe('Public timeline (e2e)', () => {
       providers: [
         PublicTimelineService,
         { provide: TimelineService, useValue: timelineMock },
+        {
+          provide: SiteService,
+          useValue: {
+            getOrCreateSettings: vi.fn(async () => ({
+              achievementsHubIntro: 'Achievements intro',
+            })),
+          },
+        },
       ],
     }).compile();
 
@@ -107,6 +116,7 @@ describe('Public timeline (e2e)', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
+    expect(res.body.data.intro).toBe('Achievements intro');
     expect(res.body.data.sections).toHaveLength(1);
     expect(res.body.data.sections[0].kind).toBe('award');
     expect(res.body.data.sections[0].items[0].title).toBe('Prize');

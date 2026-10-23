@@ -7,6 +7,7 @@ export const updateSiteSettingsBodySchema = z.object({
   researchHubIntro: z.string().max(10_000).nullable().optional(),
   projectsHubIntro: z.string().max(10_000).nullable().optional(),
   writingHubIntro: z.string().max(10_000).nullable().optional(),
+  achievementsHubIntro: z.string().max(10_000).nullable().optional(),
   faviconUrl: z.string().max(500).nullable().optional(),
   faviconMediaId: z.string().uuid().nullable().optional(),
 });

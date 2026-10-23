@@ -5,6 +5,7 @@ import {
   EXPERIENCE_KINDS,
   type TimelineEntryKind,
 } from '../../domain/timeline/timeline-kinds';
+import { SiteService } from '../../domain/site/site.service';
 import { TimelineService } from '../../domain/timeline/timeline.service';
 import type {
   ListPublishedByKindsOptions,
@@ -28,7 +29,10 @@ export function filterPublicImages(
 
 @Injectable()
 export class PublicTimelineService {
-  constructor(private readonly timeline: TimelineService) {}
+  constructor(
+    private readonly timeline: TimelineService,
+    private readonly site: SiteService,
+  ) {}
 
   private listOptionsFromQuery(
     query: ListPublicTimelineQuery,
@@ -56,6 +60,7 @@ export class PublicTimelineService {
       proofUrl: card.proofUrl,
       images: filterPublicImages(card.images),
       ...(card.href ? { href: card.href } : {}),
+      ...(card.expiresAt !== undefined ? { expiresAt: card.expiresAt } : {}),
     };
   }
 
@@ -88,19 +93,24 @@ export class PublicTimelineService {
         items: cards.filter((card) => card.kind === kind),
       }))
       .filter((section) => section.items.length > 0);
-    return { sections };
+    return { intro: null, sections };
   }
 
   async listAchievements(
     query: ListPublicTimelineQuery,
   ): Promise<TimelinePublicGroupedListDto> {
+    const settings = await this.site.getOrCreateSettings();
     const cards = await this.timeline.listPublishedAchievements(
       this.listOptionsFromQuery(query),
     );
-    return this.buildSections(
+    const grouped = this.buildSections(
       cards.map((card) => this.mapCard(card)),
       ACHIEVEMENT_KINDS,
     );
+    return {
+      ...grouped,
+      intro: settings.achievementsHubIntro ?? null,
+    };
   }
 
   async listExperience(
@@ -150,5 +160,12 @@ export class PublicTimelineService {
       throw new NotFoundException('Timeline entry not found');
     }
     return this.mapDetail(detail);
+  }
+
+  async previewById(id: string): Promise<TimelinePublicDetailDto> {
+    const entry = await this.timeline.findByIdAdmin(id);
+    const images = await this.timeline.resolvePublicImages(id);
+    const { media: _media, ...row } = entry;
+    return this.mapDetail(this.timeline.toPublicDetail(row, images));
   }
 }

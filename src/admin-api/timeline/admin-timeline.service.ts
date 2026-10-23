@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { MediaService } from '../../domain/media/media.service';
 import { TimelineService } from '../../domain/timeline/timeline.service';
+import { PublicTimelineService } from '../../public-api/timeline/public-timeline.service';
 import type {
   CreateTimelineEntryInput,
   TimelineEntryAdmin,
@@ -11,7 +12,9 @@ import type { CreateTimelineEntryBody } from './dto/create-timeline-entry.dto';
 import type { ListTimelineQuery } from './dto/list-timeline-query.dto';
 import type { TimelineAdminResponse } from './dto/timeline-admin-response.dto';
 import type { TimelineAdminSummary } from './dto/timeline-admin-summary.dto';
+import type { PublishTimelineEntryBody } from './dto/publish-timeline-entry.dto';
 import type { ReplaceTimelineEntryMediaBody } from './dto/replace-timeline-entry-media.dto';
+import type { ScheduleTimelineEntryBody } from './dto/schedule-timeline-entry.dto';
 import type { UpdateTimelineEntryBody } from './dto/update-timeline-entry.dto';
 
 @Injectable()
@@ -19,6 +22,7 @@ export class AdminTimelineService {
   constructor(
     private readonly timeline: TimelineService,
     private readonly media: MediaService,
+    private readonly publicTimeline: PublicTimelineService,
   ) {}
 
   private mapSummary(row: TimelineEntryRow): TimelineAdminSummary {
@@ -161,6 +165,40 @@ export class AdminTimelineService {
         imageRole: item.imageRole ?? null,
       })),
     );
+    const entry = await this.timeline.findByIdAdmin(id);
+    return await this.mapAdmin(entry);
+  }
+
+  async preview(id: string) {
+    return await this.publicTimeline.previewById(id);
+  }
+
+  async getPublishCheck(id: string) {
+    return await this.timeline.getPublishChecklist(id);
+  }
+
+  async publish(id: string, body: PublishTimelineEntryBody) {
+    await this.timeline.publish(id, {
+      confirmWarnings: body.confirmWarnings,
+    });
+    const entry = await this.timeline.findByIdAdmin(id);
+    return await this.mapAdmin(entry);
+  }
+
+  async unpublish(id: string) {
+    await this.timeline.unpublish(id);
+    const entry = await this.timeline.findByIdAdmin(id);
+    return await this.mapAdmin(entry);
+  }
+
+  async archive(id: string) {
+    await this.timeline.archive(id);
+    const entry = await this.timeline.findByIdAdmin(id);
+    return await this.mapAdmin(entry);
+  }
+
+  async schedule(id: string, body: ScheduleTimelineEntryBody) {
+    await this.timeline.schedule(id, new Date(body.scheduledAt));
     const entry = await this.timeline.findByIdAdmin(id);
     return await this.mapAdmin(entry);
   }

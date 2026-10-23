@@ -44,6 +44,7 @@ export class SiteService {
     researchHubIntro?: string | null;
     projectsHubIntro?: string | null;
     writingHubIntro?: string | null;
+    achievementsHubIntro?: string | null;
     faviconUrl?: string | null;
     faviconMediaId?: string | null;
   }) {
@@ -66,6 +67,10 @@ export class SiteService {
     if (input.writingHubIntro !== undefined) {
       const trimmed = input.writingHubIntro?.trim() ?? '';
       patch.writingHubIntro = trimmed === '' ? null : trimmed;
+    }
+    if (input.achievementsHubIntro !== undefined) {
+      const trimmed = input.achievementsHubIntro?.trim() ?? '';
+      patch.achievementsHubIntro = trimmed === '' ? null : trimmed;
     }
 
     // faviconMediaId wins over manual faviconUrl when both are sent.

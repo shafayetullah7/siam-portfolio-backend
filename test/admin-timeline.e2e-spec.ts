@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   INestApplication,
   NotFoundException,
@@ -10,6 +11,8 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AdminTimelineController } from '../src/admin-api/timeline/admin-timeline.controller';
 import { AdminTimelineService } from '../src/admin-api/timeline/admin-timeline.service';
+import { PublicTimelineService } from '../src/public-api/timeline/public-timeline.service';
+import { timelinePublishChecklist } from '../src/domain/timeline/timeline-publish-checklist';
 import { ApiEnvelopeInterceptor } from '../src/common/interceptors/api-envelope.interceptor';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { AdminAuthGuard } from '../src/common/guards/admin-auth.guard';
@@ -79,6 +82,35 @@ describe('Admin timeline CRUD (e2e)', () => {
         return media;
       },
     ),
+    getPublishChecklist: vi.fn(async (id: string) => {
+      const row = store.get(id);
+      if (!row) throw new NotFoundException('Timeline entry not found');
+      return timelinePublishChecklist(row, []);
+    }),
+    publish: vi.fn(async (id: string) => {
+      const row = store.get(id);
+      if (!row) throw new NotFoundException('Timeline entry not found');
+      const checklist = timelinePublishChecklist(row, []);
+      if (checklist.errors.length > 0) {
+        throw new BadRequestException({
+          message: checklist.errors.map((e) => e.message).join('; '),
+          code: 'PUBLISH_BLOCKED',
+          checklist,
+        });
+      }
+      row.publishStatus = 'published';
+      row.publishedAt = new Date();
+      row.scheduledAt = null;
+      return row;
+    }),
+    unpublish: vi.fn(async (id: string) => {
+      const row = store.get(id);
+      if (!row) throw new NotFoundException('Timeline entry not found');
+      row.publishStatus = 'draft';
+      row.publishedAt = null;
+      row.scheduledAt = null;
+      return row;
+    }),
     listAdmin: vi.fn(async (query = {}) => {
       let rows = [...store.values()];
       if (query.kind) {
@@ -97,6 +129,15 @@ describe('Admin timeline CRUD (e2e)', () => {
         total: rows.length,
       });
     }),
+  };
+
+  const publicTimelineMock: Partial<PublicTimelineService> = {
+    previewById: vi.fn(async () => ({
+      id: ENTRY_ID,
+      kind: 'award',
+      title: 'Prize',
+      images: [],
+    })),
   };
 
   const mediaMock: Partial<MediaService> = {
@@ -118,6 +159,7 @@ describe('Admin timeline CRUD (e2e)', () => {
         AdminTimelineService,
         { provide: TimelineService, useValue: timelineMock },
         { provide: MediaService, useValue: mediaMock },
+        { provide: PublicTimelineService, useValue: publicTimelineMock },
       ],
     })
       .overrideGuard(AdminAuthGuard)
@@ -225,6 +267,38 @@ describe('Admin timeline CRUD (e2e)', () => {
     expect(putRes.body.data.mediaLinks[0].sortOrder).toBe(0);
     expect(putRes.body.data.mediaLinks[1].mediaId).toBe(MEDIA_ID_2);
     expect(putRes.body.data.mediaLinks[0].url).toContain(MEDIA_ID_1);
+  });
+
+  it('publish-check returns checklist shape', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/admin/timeline')
+      .send({ kind: 'award', title: 'Prize' })
+      .expect(201);
+
+    const id = createRes.body.data.id;
+
+    const checkRes = await request(app.getHttpServer())
+      .get(`/api/v1/admin/timeline/${id}/publish-check`)
+      .expect(200);
+
+    expect(checkRes.body.data.errors).toEqual([]);
+    expect(Array.isArray(checkRes.body.data.warnings)).toBe(true);
+  });
+
+  it('publish blocked when title cleared in store', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/admin/timeline')
+      .send({ kind: 'award', title: 'Prize' })
+      .expect(201);
+
+    const id = createRes.body.data.id;
+    const row = store.get(id)!;
+    row.title = ' ';
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/timeline/${id}/publish`)
+      .send({})
+      .expect(400);
   });
 
   it('PUT media rejects more than 10 items', async () => {

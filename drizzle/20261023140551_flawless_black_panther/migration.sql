@@ -1,0 +1,1 @@
+ALTER TABLE "site_settings" ADD COLUMN "achievements_hub_intro" text;

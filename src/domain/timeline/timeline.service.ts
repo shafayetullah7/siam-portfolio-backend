@@ -13,6 +13,7 @@ import {
   eq,
   ilike,
   inArray,
+  lte,
   ne,
   or,
   type SQL,
@@ -41,12 +42,18 @@ import {
   isAchievementKind,
   type TimelineEntryKind,
 } from './timeline-kinds';
+import {
+  timelinePublishChecklist,
+  type TimelinePublishChecklistMediaContext,
+  type TimelinePublishChecklistResult,
+} from './timeline-publish-checklist';
 import type {
   CreateTimelineEntryInput,
   ListAdminTimelineQuery,
   ListAdminTimelineSort,
   ListPublicTimelineSort,
   ListPublishedByKindsOptions,
+  PublishTimelineOptions,
   ReplaceEntryMediaInput,
   TimelineEntryAdmin,
   TimelineEntryMediaAdmin,
@@ -125,6 +132,7 @@ export class TimelineService {
       proofUrl: row.proofUrl,
       images,
       ...(href ? { href } : {}),
+      ...(row.kind === 'certification' ? { expiresAt: row.expiresAt } : {}),
     };
   }
 
@@ -380,6 +388,140 @@ export class TimelineService {
       caption: m.caption,
       imageRole: m.imageRole,
     }));
+  }
+
+  async getPublishChecklist(id: string): Promise<TimelinePublishChecklistResult> {
+    const entry = await this.findByIdAdmin(id);
+    const mediaContext = await this.publishChecklistMediaContext(id);
+    return timelinePublishChecklist(entry, mediaContext);
+  }
+
+  private async publishChecklistMediaContext(
+    entryId: string,
+  ): Promise<TimelinePublishChecklistMediaContext[]> {
+    const mediaRows = await this.loadMediaRowsForEntry(entryId);
+    const mediaMap = await this.loadMediaUrlMap(mediaRows.map((m) => m.mediaId));
+    return mediaRows.map((m) => {
+      const resolved = mediaMap.get(m.mediaId);
+      return {
+        mediaId: m.mediaId,
+        alt: resolved?.alt ?? null,
+        mediaMissing: !resolved,
+      };
+    });
+  }
+
+  async publish(
+    id: string,
+    options: PublishTimelineOptions = {},
+  ): Promise<TimelineEntryRow> {
+    await this.findEntryRow(id);
+    const checklist = await this.getPublishChecklist(id);
+
+    if (checklist.errors.length > 0) {
+      throw new BadRequestException({
+        message: checklist.errors.map((item) => item.message).join('; '),
+        code: 'PUBLISH_BLOCKED',
+        checklist,
+      });
+    }
+
+    if (checklist.warnings.length > 0 && !options.confirmWarnings) {
+      throw new BadRequestException({
+        message: 'Confirm publish warnings before continuing',
+        code: 'PUBLISH_WARNINGS',
+        checklist,
+      });
+    }
+
+    const entry = await this.findByIdAdmin(id);
+    if (entry.featured && isAchievementKind(entry.kind as TimelineEntryKind)) {
+      await this.assertFeaturedPublishedQuota(id, true);
+    }
+
+    const [updated] = await this.db
+      .update(timelineEntries)
+      .set({
+        publishStatus: 'published',
+        publishedAt: new Date(),
+        scheduledAt: null,
+        archivedAt: null,
+      })
+      .where(eq(timelineEntries.id, id))
+      .returning();
+    if (!updated) {
+      throw new NotFoundException('Timeline entry not found');
+    }
+    return updated;
+  }
+
+  async unpublish(id: string): Promise<TimelineEntryRow> {
+    await this.findEntryRow(id);
+    const [updated] = await this.db
+      .update(timelineEntries)
+      .set({
+        publishStatus: 'draft',
+        publishedAt: null,
+        scheduledAt: null,
+      })
+      .where(eq(timelineEntries.id, id))
+      .returning();
+    if (!updated) {
+      throw new NotFoundException('Timeline entry not found');
+    }
+    return updated;
+  }
+
+  async schedule(id: string, scheduledAt: Date): Promise<TimelineEntryRow> {
+    if (scheduledAt.getTime() <= Date.now()) {
+      throw new BadRequestException('scheduledAt must be in the future');
+    }
+    await this.findEntryRow(id);
+    const [updated] = await this.db
+      .update(timelineEntries)
+      .set({
+        publishStatus: 'scheduled',
+        scheduledAt,
+        archivedAt: null,
+      })
+      .where(eq(timelineEntries.id, id))
+      .returning();
+    if (!updated) {
+      throw new NotFoundException('Timeline entry not found');
+    }
+    return updated;
+  }
+
+  async archive(id: string): Promise<TimelineEntryRow> {
+    await this.findEntryRow(id);
+    const [updated] = await this.db
+      .update(timelineEntries)
+      .set({
+        publishStatus: 'archived',
+        archivedAt: new Date(),
+      })
+      .where(eq(timelineEntries.id, id))
+      .returning();
+    if (!updated) {
+      throw new NotFoundException('Timeline entry not found');
+    }
+    return updated;
+  }
+
+  async publishDueScheduled(now = new Date()): Promise<number> {
+    const due = await this.db
+      .select()
+      .from(timelineEntries)
+      .where(
+        and(
+          eq(timelineEntries.publishStatus, 'scheduled'),
+          lte(timelineEntries.scheduledAt, now),
+        ),
+      );
+    for (const row of due) {
+      await this.publish(row.id, { confirmWarnings: true });
+    }
+    return due.length;
   }
 
   async findPublishedBySlug(

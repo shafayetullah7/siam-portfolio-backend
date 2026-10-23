@@ -22,9 +22,17 @@ import {
 } from './dto/list-timeline-query.dto';
 import { timelineEntryIdParamSchema } from './dto/timeline-entry-id-params.dto';
 import {
+  publishTimelineEntryBodySchema,
+  type PublishTimelineEntryBody,
+} from './dto/publish-timeline-entry.dto';
+import {
   replaceTimelineEntryMediaBodySchema,
   type ReplaceTimelineEntryMediaBody,
 } from './dto/replace-timeline-entry-media.dto';
+import {
+  scheduleTimelineEntryBodySchema,
+  type ScheduleTimelineEntryBody,
+} from './dto/schedule-timeline-entry.dto';
 import {
   updateTimelineEntryBodySchema,
   type UpdateTimelineEntryBody,
@@ -52,6 +60,20 @@ export class AdminTimelineController {
     return await this.timeline.create(body);
   }
 
+  @Get(':id/preview')
+  @ApiOperation({ summary: 'Public detail preview (any status)' })
+  async preview(@Param('id', { schema: timelineEntryIdParamSchema }) id: string) {
+    return await this.timeline.preview(id);
+  }
+
+  @Get(':id/publish-check')
+  @ApiOperation({ summary: 'Pre-publish validation checklist' })
+  async publishCheck(
+    @Param('id', { schema: timelineEntryIdParamSchema }) id: string,
+  ) {
+    return await this.timeline.getPublishCheck(id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get timeline entry by id' })
   async get(@Param('id', { schema: timelineEntryIdParamSchema }) id: string) {
@@ -65,6 +87,40 @@ export class AdminTimelineController {
     @Body({ schema: updateTimelineEntryBodySchema }) body: UpdateTimelineEntryBody,
   ) {
     return await this.timeline.update(id, body);
+  }
+
+  @Post(':id/publish')
+  @ApiOperation({ summary: 'Publish timeline entry' })
+  async publish(
+    @Param('id', { schema: timelineEntryIdParamSchema }) id: string,
+    @Body({ schema: publishTimelineEntryBodySchema })
+    body: PublishTimelineEntryBody,
+  ) {
+    return await this.timeline.publish(id, body);
+  }
+
+  @Post(':id/unpublish')
+  @ApiOperation({ summary: 'Unpublish timeline entry' })
+  async unpublish(
+    @Param('id', { schema: timelineEntryIdParamSchema }) id: string,
+  ) {
+    return await this.timeline.unpublish(id);
+  }
+
+  @Post(':id/archive')
+  @ApiOperation({ summary: 'Archive timeline entry' })
+  async archive(@Param('id', { schema: timelineEntryIdParamSchema }) id: string) {
+    return await this.timeline.archive(id);
+  }
+
+  @Post(':id/schedule')
+  @ApiOperation({ summary: 'Schedule timeline entry' })
+  async schedule(
+    @Param('id', { schema: timelineEntryIdParamSchema }) id: string,
+    @Body({ schema: scheduleTimelineEntryBodySchema })
+    body: ScheduleTimelineEntryBody,
+  ) {
+    return await this.timeline.schedule(id, body);
   }
 
   @Put(':id/media')
