@@ -712,6 +712,22 @@ export class TimelineService {
     return this.listPublishedByKinds(ACHIEVEMENT_KINDS, options);
   }
 
+  async listPublishedAchievementSlugs(now = new Date()): Promise<string[]> {
+    const rows = await this.db
+      .select()
+      .from(timelineEntries)
+      .where(inArray(timelineEntries.kind, [...ACHIEVEMENT_KINDS]));
+    return this.filterPublishedRows(rows, {}, now)
+      .filter((row) => Boolean(row.slug?.trim()))
+      .map((row) => row.slug!.trim())
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  async hasPublishedAchievements(now = new Date()): Promise<boolean> {
+    const slugs = await this.listPublishedAchievementSlugs(now);
+    return slugs.length > 0;
+  }
+
   async listPublishedExperience(
     options?: ListPublishedByKindsOptions,
   ): Promise<TimelinePublicCard[]> {

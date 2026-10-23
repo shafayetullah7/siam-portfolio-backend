@@ -6,6 +6,7 @@ import { publications } from '../../db/schema/publications';
 import { projects } from '../../db/schema/projects';
 import { sitePages } from '../../db/schema/site-pages';
 import { media } from '../../db/schema/media';
+import { timelineEntries } from '../../db/schema/timeline/timeline-entries';
 import { articles } from '../../db/schema/writing/articles';
 
 @Injectable()
@@ -68,6 +69,23 @@ export class DashboardService {
     );
     const writingCountBy = (status: string) =>
       writingCounts.find((c) => c.status === status)?.total ?? 0;
+    const timelineStatuses = [
+      'draft',
+      'published',
+      'scheduled',
+      'archived',
+    ] as const;
+    const timelineCounts = await Promise.all(
+      timelineStatuses.map(async (status) => {
+        const [row] = await this.db
+          .select({ total: count() })
+          .from(timelineEntries)
+          .where(eq(timelineEntries.publishStatus, status));
+        return { status, total: Number(row?.total ?? 0) };
+      }),
+    );
+    const timelineCountBy = (status: string) =>
+      timelineCounts.find((c) => c.status === status)?.total ?? 0;
     return {
       pages: {
         draft: countBy('draft'),
@@ -92,6 +110,12 @@ export class DashboardService {
         published: writingCountBy('published'),
         scheduled: writingCountBy('scheduled'),
         archived: writingCountBy('archived'),
+      },
+      timeline: {
+        draft: timelineCountBy('draft'),
+        published: timelineCountBy('published'),
+        scheduled: timelineCountBy('scheduled'),
+        archived: timelineCountBy('archived'),
       },
       media: mediaRows.length,
     };

@@ -33,6 +33,9 @@ function createSiteService(db: unknown) {
   const publications = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
   const projects = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
   const writing = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
+  const timeline = {
+    listPublishedAchievementSlugs: vi.fn().mockResolvedValue([]),
+  };
   return new SiteService(
     db as never,
     sitePages as never,
@@ -40,6 +43,7 @@ function createSiteService(db: unknown) {
     publications as never,
     projects as never,
     writing as never,
+    timeline as never,
   );
 }
 
@@ -67,6 +71,9 @@ describe('SiteService.getPublicSite', () => {
     const writing = {
       listPublishedSlugs: vi.fn().mockResolvedValue(['essay-a']),
     };
+    const timeline = {
+      listPublishedAchievementSlugs: vi.fn().mockResolvedValue([]),
+    };
     const service = new SiteService(
       db as never,
       sitePages as never,
@@ -74,6 +81,7 @@ describe('SiteService.getPublicSite', () => {
       publications as never,
       projects as never,
       writing as never,
+      timeline as never,
     );
     vi.spyOn(service, 'listNav').mockResolvedValue([]);
 
@@ -94,6 +102,33 @@ describe('SiteService.getPublicSite', () => {
     ]);
   });
 
+  it('includes achievements hub and slugs when published P09 entries exist', async () => {
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          limit: vi.fn().mockResolvedValue([settingsRow]),
+        })),
+      })),
+    };
+    const timeline = {
+      listPublishedAchievementSlugs: vi.fn().mockResolvedValue(['prize']),
+    };
+    const service = new SiteService(
+      db as never,
+      { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
+      { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
+      { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
+      { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
+      { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
+      timeline as never,
+    );
+    vi.spyOn(service, 'listNav').mockResolvedValue([]);
+
+    const site = await service.getPublicSite();
+    expect(site.sitemapPaths).toContain('/achievements');
+    expect(site.sitemapPaths).toContain('/achievements/prize');
+  });
+
   it('omits writing paths when no published articles', async () => {
     const db = {
       select: vi.fn(() => ({
@@ -103,6 +138,9 @@ describe('SiteService.getPublicSite', () => {
       })),
     };
     const writing = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
+    const timeline = {
+      listPublishedAchievementSlugs: vi.fn().mockResolvedValue([]),
+    };
     const service = new SiteService(
       db as never,
       { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
@@ -110,6 +148,7 @@ describe('SiteService.getPublicSite', () => {
       { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
       { listPublishedSlugs: vi.fn().mockResolvedValue([]) } as never,
       writing as never,
+      timeline as never,
     );
     vi.spyOn(service, 'listNav').mockResolvedValue([]);
 

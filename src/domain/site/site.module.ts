@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ProjectsModule } from '../projects/projects.module';
+import { TimelineModule } from '../timeline/timeline.module';
 import { WritingModule } from '../writing/writing.module';
 import { PublicationsModule } from '../publications/publications.module';
 import { ResearchModule } from '../research/research.module';
@@ -13,6 +14,7 @@ import { SiteService } from './site.service';
     PublicationsModule,
     ProjectsModule,
     WritingModule,
+    TimelineModule,
   ],
   providers: [SiteService],
   exports: [SiteService],

@@ -14,6 +14,7 @@ import { WritingService } from '../writing/writing.service';
 import { PublicationsService } from '../publications/publications.service';
 import { ResearchService } from '../research/research.service';
 import { SitePagesService } from '../site-pages/site-pages.service';
+import { TimelineService } from '../timeline/timeline.service';
 
 @Injectable()
 export class SiteService {
@@ -25,6 +26,7 @@ export class SiteService {
     private readonly publications: PublicationsService,
     private readonly projects: ProjectsService,
     private readonly writing: WritingService,
+    private readonly timeline: TimelineService,
   ) {}
 
   async getOrCreateSettings() {
@@ -158,14 +160,21 @@ export class SiteService {
   async getPublicSite() {
     const settings = await this.getOrCreateSettings();
     const nav = (await this.listNav()).filter((n) => n.visible);
-    const [pageSlugs, researchSlugs, publicationSlugs, projectSlugs, writingSlugs] =
-      await Promise.all([
-        this.sitePages.listPublishedSlugs(),
-        this.research.listPublishedSlugs(),
-        this.publications.listPublishedSlugs(),
-        this.projects.listPublishedSlugs(),
-        this.writing.listPublishedSlugs(),
-      ]);
+    const [
+      pageSlugs,
+      researchSlugs,
+      publicationSlugs,
+      projectSlugs,
+      writingSlugs,
+      achievementSlugs,
+    ] = await Promise.all([
+      this.sitePages.listPublishedSlugs(),
+      this.research.listPublishedSlugs(),
+      this.publications.listPublishedSlugs(),
+      this.projects.listPublishedSlugs(),
+      this.writing.listPublishedSlugs(),
+      this.timeline.listPublishedAchievementSlugs(),
+    ]);
     const researchPaths = [
       '/research',
       ...researchSlugs.map((s) => `/research/${s}`),
@@ -182,6 +191,13 @@ export class SiteService {
       writingSlugs.length > 0
         ? ['/writing', ...writingSlugs.map((s) => `/writing/${s}`)]
         : [];
+    const achievementPaths =
+      achievementSlugs.length > 0
+        ? [
+            '/achievements',
+            ...achievementSlugs.map((s) => `/achievements/${s}`),
+          ]
+        : [];
     return {
       siteName: settings.siteName,
       defaultMetaDescription: settings.defaultMetaDescription,
@@ -193,6 +209,7 @@ export class SiteService {
         ...publicationPaths,
         ...projectPaths,
         ...writingPaths,
+        ...achievementPaths,
         '/',
         '/about',
         ...pageSlugs.map((s) => `/pages/${s}`),

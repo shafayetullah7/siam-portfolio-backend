@@ -5,13 +5,15 @@ import { seedDevAdmin } from './dev-admin';
 import { seedProjects } from './projects';
 import { seedPublications } from './publications';
 import { seedResearchThemes } from './research-themes';
+import { seedTimeline } from './timeline';
 import { seedWriting } from './writing';
 
 // Host `.env` uses localhost + DB_EXTERNAL_PORT; Docker Compose sets in-network URL.
 // Project seed needs applied migrations for project child tables and PROJ11 junctions
 // (`project_publications`, `project_section_media`). Writing seed needs WRIT11 junctions
-// (`writing_article_*`). After schema changes: consent, then `pnpm db:generate` and
-// `pnpm db:migrate` before `pnpm run db:seed`.
+// (`writing_article_*`). Timeline seed needs `timeline_entries` and
+// `timeline_entry_media` (ACH1+). After schema changes: consent, then
+// `pnpm db:generate` and `pnpm db:migrate` before `pnpm run db:seed`.
 // Never let mounted `.env` override an existing DATABASE_URL (e.g. postgres:5432).
 config({ override: false });
 
@@ -33,6 +35,7 @@ async function main() {
       await seedPublications(db);
       await seedProjects(db);
       await seedWriting(db);
+      await seedTimeline(db);
     }
   } finally {
     await pool.end();
