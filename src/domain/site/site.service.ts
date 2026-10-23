@@ -9,6 +9,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { media } from '../../db/schema/media';
 import { navItems, siteSettings } from '../../db/schema/site';
 import { MEDIA_IMAGE_MIME_TYPES } from '../media/media-upload.constants';
+import { ProjectsService } from '../projects/projects.service';
 import { PublicationsService } from '../publications/publications.service';
 import { ResearchService } from '../research/research.service';
 import { SitePagesService } from '../site-pages/site-pages.service';
@@ -21,6 +22,7 @@ export class SiteService {
     private readonly sitePages: SitePagesService,
     private readonly research: ResearchService,
     private readonly publications: PublicationsService,
+    private readonly projects: ProjectsService,
   ) {}
 
   async getOrCreateSettings() {
@@ -38,6 +40,7 @@ export class SiteService {
     defaultMetaDescription?: string | null;
     footerText?: string | null;
     researchHubIntro?: string | null;
+    projectsHubIntro?: string | null;
     faviconUrl?: string | null;
     faviconMediaId?: string | null;
   }) {
@@ -52,6 +55,10 @@ export class SiteService {
     if (input.researchHubIntro !== undefined) {
       const trimmed = input.researchHubIntro?.trim() ?? '';
       patch.researchHubIntro = trimmed === '' ? null : trimmed;
+    }
+    if (input.projectsHubIntro !== undefined) {
+      const trimmed = input.projectsHubIntro?.trim() ?? '';
+      patch.projectsHubIntro = trimmed === '' ? null : trimmed;
     }
 
     // faviconMediaId wins over manual faviconUrl when both are sent.
@@ -134,11 +141,13 @@ export class SiteService {
   async getPublicSite() {
     const settings = await this.getOrCreateSettings();
     const nav = (await this.listNav()).filter((n) => n.visible);
-    const [pageSlugs, researchSlugs, publicationSlugs] = await Promise.all([
-      this.sitePages.listPublishedSlugs(),
-      this.research.listPublishedSlugs(),
-      this.publications.listPublishedSlugs(),
-    ]);
+    const [pageSlugs, researchSlugs, publicationSlugs, projectSlugs] =
+      await Promise.all([
+        this.sitePages.listPublishedSlugs(),
+        this.research.listPublishedSlugs(),
+        this.publications.listPublishedSlugs(),
+        this.projects.listPublishedSlugs(),
+      ]);
     const researchPaths = [
       '/research',
       ...researchSlugs.map((s) => `/research/${s}`),
@@ -146,6 +155,10 @@ export class SiteService {
     const publicationPaths = [
       '/publications',
       ...publicationSlugs.map((s) => `/publications/${s}`),
+    ];
+    const projectPaths = [
+      '/projects',
+      ...projectSlugs.map((s) => `/projects/${s}`),
     ];
     return {
       siteName: settings.siteName,
@@ -156,6 +169,7 @@ export class SiteService {
       sitemapPaths: [
         ...researchPaths,
         ...publicationPaths,
+        ...projectPaths,
         '/',
         '/about',
         ...pageSlugs.map((s) => `/pages/${s}`),

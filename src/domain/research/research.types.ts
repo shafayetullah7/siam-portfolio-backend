@@ -5,6 +5,13 @@ import type {
 } from '../../db/schema/research';
 
 export type ResearchThemeRow = typeof researchThemes.$inferSelect;
+
+export type ResearchThemePublicLinkCard = {
+  slug: string;
+  title: string;
+  summary: string;
+  href: string;
+};
 export type ResearchThemeResourceRow =
   typeof researchThemeResources.$inferSelect;
 export type ResearchThemeStatus = ResearchThemeRow['themeStatus'];

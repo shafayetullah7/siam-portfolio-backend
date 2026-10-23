@@ -19,11 +19,21 @@ const homePublicationHighlightSchema = z.object({
   featured: z.boolean().optional(),
 });
 
+const homeProjectHighlightSchema = z.object({
+  title: z.string(),
+  summary: z.string(),
+  href: z.string(),
+  tags: z.array(z.string()).optional(),
+  coverUrl: z.string().nullable().optional(),
+  coverAlt: z.string().nullable().optional(),
+});
+
 export const publicHomeResponseSchema = z.object({
   heroTitle: z.string().nullable(),
   heroSubtitle: z.string().nullable(),
   researchFocus: z.array(homeResearchFocusItemSchema),
   selectedPublications: z.array(homePublicationHighlightSchema).optional(),
+  selectedProjects: z.array(homeProjectHighlightSchema).optional(),
 });
 
 export type PublicHomeResponse = z.infer<typeof publicHomeResponseSchema>;
@@ -32,4 +42,7 @@ export type HomeResearchFocusPublic = z.infer<
 >;
 export type HomePublicationHighlightPublic = z.infer<
   typeof homePublicationHighlightSchema
+>;
+export type HomeProjectHighlightPublic = z.infer<
+  typeof homeProjectHighlightSchema
 >;

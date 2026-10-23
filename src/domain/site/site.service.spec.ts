@@ -31,11 +31,13 @@ function createSiteService(db: unknown) {
   const sitePages = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
   const research = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
   const publications = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
+  const projects = { listPublishedSlugs: vi.fn().mockResolvedValue([]) };
   return new SiteService(
     db as never,
     sitePages as never,
     research as never,
     publications as never,
+    projects as never,
   );
 }
 
@@ -57,11 +59,15 @@ describe('SiteService.getPublicSite', () => {
     const publications = {
       listPublishedSlugs: vi.fn().mockResolvedValue(['paper-a']),
     };
+    const projects = {
+      listPublishedSlugs: vi.fn().mockResolvedValue(['case-study']),
+    };
     const service = new SiteService(
       db as never,
       sitePages as never,
       research as never,
       publications as never,
+      projects as never,
     );
     vi.spyOn(service, 'listNav').mockResolvedValue([]);
 
@@ -72,6 +78,8 @@ describe('SiteService.getPublicSite', () => {
       '/research/beta',
       '/publications',
       '/publications/paper-a',
+      '/projects',
+      '/projects/case-study',
       '/',
       '/about',
       '/pages/about-page',

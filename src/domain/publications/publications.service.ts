@@ -1070,13 +1070,17 @@ export class PublicationsService {
     now = new Date(),
   ): Promise<PublicationPublicCard[]> {
     const rows = await this.findManyByIds(ids);
-    return rows
-      .filter((row) =>
-        isPubliclyVisible(
-          row.publishStatus as PublishStatus,
-          row.scheduledAt,
-          now,
-        ),
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return ids
+      .map((id) => byId.get(id))
+      .filter(
+        (row): row is PublicationRow =>
+          row != null &&
+          isPubliclyVisible(
+            row.publishStatus as PublishStatus,
+            row.scheduledAt,
+            now,
+          ),
       )
       .map((row) => this.toPublicCard(row));
   }

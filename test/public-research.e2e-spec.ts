@@ -112,7 +112,12 @@ describe('Public research themes (e2e)', () => {
         ...(index < slugs.length - 1 ? { nextSlug: slugs[index + 1] } : {}),
       };
     }),
-    listProjectIdsForTheme: vi.fn(async () => []),
+    listProjectIdsForTheme: vi.fn(async (themeId: string) => {
+      if (themeId !== '00000000-0000-4000-8000-000000000001') {
+        return [];
+      }
+      return [LINKED_PROJECT_ID];
+    }),
     listPublicationIdsForTheme: vi.fn(async (themeId: string) => {
       if (themeId !== '00000000-0000-4000-8000-000000000001') {
         return [];
@@ -148,9 +153,34 @@ describe('Public research themes (e2e)', () => {
     }),
   };
 
+  const LINKED_PROJECT_ID = '00000000-0000-4000-8000-000000000021';
+  let linkedProjectPublished = true;
+
   const projectsMock: Partial<ProjectsService> = {
-    listPublishedCardsByIds: vi.fn(async () => []),
-    countPublishedForThemeIds: vi.fn(async () => new Map()),
+    listPublishedCardsByIds: vi.fn(async (ids: string[]) => {
+      if (!ids.includes(LINKED_PROJECT_ID) || !linkedProjectPublished) {
+        return [];
+      }
+      return [
+        {
+          slug: 'linked-project',
+          title: 'Linked Project',
+          summary: 'Summary',
+          href: '/projects/linked-project',
+          projectType: 'open_source',
+          projectStatus: 'completed',
+        },
+      ];
+    }),
+    countPublishedForThemeIds: vi.fn(async (themeIds: string[]) => {
+      const map = new Map<string, number>();
+      for (const id of themeIds) {
+        if (id === '00000000-0000-4000-8000-000000000001' && linkedProjectPublished) {
+          map.set(id, 1);
+        }
+      }
+      return map;
+    }),
   };
 
   const publicationsMock: Partial<PublicationsService> = {
@@ -225,6 +255,7 @@ describe('Public research themes (e2e)', () => {
 
   beforeEach(async () => {
     themes.clear();
+    linkedProjectPublished = true;
     linkedPublication = publicationRow({
       id: LINKED_PUB_ID,
       slug: 'linked-paper',
@@ -339,7 +370,7 @@ describe('Public research themes (e2e)', () => {
     expect(liveItem.coverUrl).toBe('https://cdn.example/cover.jpg');
     expect(liveItem.relatedCounts).toEqual({
       publications: 1,
-      projects: 0,
+      projects: 1,
     });
   });
 
@@ -417,6 +448,33 @@ describe('Public research themes (e2e)', () => {
         venue: 'NeurIPS',
         publicationType: 'conference',
         href: '/publications/linked-paper',
+      },
+    ]);
+  });
+
+  it('omits draft linked project from theme detail; shows when published', async () => {
+    linkedProjectPublished = false;
+
+    const draftRes = await request(app.getHttpServer())
+      .get('/api/v1/public/research-themes/live-theme')
+      .expect(200);
+
+    expect(draftRes.body.data.related?.projects ?? []).toEqual([]);
+
+    linkedProjectPublished = true;
+
+    const liveRes = await request(app.getHttpServer())
+      .get('/api/v1/public/research-themes/live-theme')
+      .expect(200);
+
+    expect(liveRes.body.data.related?.projects).toEqual([
+      {
+        slug: 'linked-project',
+        title: 'Linked Project',
+        summary: 'Summary',
+        href: '/projects/linked-project',
+        projectType: 'open_source',
+        projectStatus: 'completed',
       },
     ]);
   });

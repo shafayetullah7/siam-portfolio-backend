@@ -3,6 +3,7 @@ import { InjectDrizzle } from '@nestjs/drizzle';
 import { count, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { publications } from '../../db/schema/publications';
+import { projects } from '../../db/schema/projects';
 import { sitePages } from '../../db/schema/site-pages';
 import { media } from '../../db/schema/media';
 
@@ -32,6 +33,23 @@ export class DashboardService {
     );
     const publicationCountBy = (status: string) =>
       publicationCounts.find((c) => c.status === status)?.total ?? 0;
+    const projectStatuses = [
+      'draft',
+      'published',
+      'scheduled',
+      'archived',
+    ] as const;
+    const projectCounts = await Promise.all(
+      projectStatuses.map(async (status) => {
+        const [row] = await this.db
+          .select({ total: count() })
+          .from(projects)
+          .where(eq(projects.publishStatus, status));
+        return { status, total: Number(row?.total ?? 0) };
+      }),
+    );
+    const projectCountBy = (status: string) =>
+      projectCounts.find((c) => c.status === status)?.total ?? 0;
     return {
       pages: {
         draft: countBy('draft'),
@@ -44,6 +62,12 @@ export class DashboardService {
         published: publicationCountBy('published'),
         scheduled: publicationCountBy('scheduled'),
         archived: publicationCountBy('archived'),
+      },
+      projects: {
+        draft: projectCountBy('draft'),
+        published: projectCountBy('published'),
+        scheduled: projectCountBy('scheduled'),
+        archived: projectCountBy('archived'),
       },
       media: mediaRows.length,
     };

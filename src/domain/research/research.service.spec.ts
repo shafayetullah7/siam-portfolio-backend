@@ -523,6 +523,39 @@ describe('ResearchService.restoreRevision', () => {
   });
 });
 
+describe('ResearchService.listPublishedThemeCardsByIds', () => {
+  it('returns only published themes in input order', async () => {
+    const published = {
+      id: 't1',
+      slug: 'live-theme',
+      title: 'Live',
+      summary: 'S',
+      publishStatus: 'published',
+      publishedAt: new Date(),
+      scheduledAt: null,
+    };
+    const draft = {
+      id: 't2',
+      slug: 'draft-theme',
+      title: 'Draft',
+      summary: 'S',
+      publishStatus: 'draft',
+      publishedAt: null,
+      scheduledAt: null,
+    };
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([published, draft]),
+        }),
+      }),
+    };
+    const service = researchService(db);
+    const cards = await service.listPublishedThemeCardsByIds(['t2', 't1']);
+    expect(cards.map((c) => c.slug)).toEqual(['live-theme']);
+  });
+});
+
 describe('ResearchService.replacePublications', () => {
   it('rejects when over max links', async () => {
     const service = researchService({});

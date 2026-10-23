@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, asc, eq, ilike, lte, ne, or, type SQL } from 'drizzle-orm';
+import { and, asc, eq, ilike, inArray, lte, ne, or, type SQL } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { isPubliclyVisible } from '../../common/publishing/is-publicly-visible';
 import type { PublishStatus } from '../../common/publishing/publish-status';
@@ -38,6 +38,7 @@ import type {
   CreateResearchThemeInput,
   ListAdminResearchQuery,
   ResearchThemeResourceInput,
+  ResearchThemePublicLinkCard,
   ResearchThemeResourceRow,
   ResearchThemeRow,
   UpdateResearchThemeInput,
@@ -538,6 +539,41 @@ export class ResearchService {
       ...(index > 0 ? { prevSlug: slugs[index - 1] } : {}),
       ...(index < slugs.length - 1 ? { nextSlug: slugs[index + 1] } : {}),
     };
+  }
+
+  hrefForSlug(slug: string): string {
+    return `/research/${slug}`;
+  }
+
+  async listPublishedThemeCardsByIds(
+    ids: string[],
+    now = new Date(),
+  ): Promise<ResearchThemePublicLinkCard[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select()
+      .from(researchThemes)
+      .where(inArray(researchThemes.id, ids));
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return ids
+      .map((id) => byId.get(id))
+      .filter(
+        (row): row is ResearchThemeRow =>
+          row != null &&
+          isPubliclyVisible(
+            row.publishStatus as PublishStatus,
+            row.scheduledAt,
+            now,
+          ),
+      )
+      .map((row) => ({
+        slug: row.slug,
+        title: row.title,
+        summary: row.summary,
+        href: this.hrefForSlug(row.slug),
+      }));
   }
 
   async listPublished(): Promise<ResearchThemeRow[]> {
