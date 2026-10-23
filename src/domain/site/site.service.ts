@@ -43,6 +43,7 @@ export class SiteService {
     footerText?: string | null;
     researchHubIntro?: string | null;
     projectsHubIntro?: string | null;
+    writingHubIntro?: string | null;
     faviconUrl?: string | null;
     faviconMediaId?: string | null;
   }) {
@@ -61,6 +62,10 @@ export class SiteService {
     if (input.projectsHubIntro !== undefined) {
       const trimmed = input.projectsHubIntro?.trim() ?? '';
       patch.projectsHubIntro = trimmed === '' ? null : trimmed;
+    }
+    if (input.writingHubIntro !== undefined) {
+      const trimmed = input.writingHubIntro?.trim() ?? '';
+      patch.writingHubIntro = trimmed === '' ? null : trimmed;
     }
 
     // faviconMediaId wins over manual faviconUrl when both are sent.

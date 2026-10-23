@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { MediaService } from '../../domain/media/media.service';
+import { SiteService } from '../../domain/site/site.service';
 import { WritingService } from '../../domain/writing/writing.service';
 import type {
   ArticleRow,
@@ -19,11 +20,25 @@ const EMPTY_RELATED: WritingPublicRelated = {
   themes: [],
 };
 
+function shouldAttachSeriesSections(query: ListPublicWritingQuery): boolean {
+  const page = query.page ?? 1;
+  const sort = query.sort ?? 'publishedAtDesc';
+  return (
+    !query.q?.trim() &&
+    !query.tag?.trim() &&
+    !query.series?.trim() &&
+    page === 1 &&
+    sort === 'publishedAtDesc' &&
+    query.featuredOnHub !== true
+  );
+}
+
 @Injectable()
 export class PublicWritingService {
   constructor(
     private readonly writing: WritingService,
     private readonly media: MediaService,
+    private readonly site: SiteService,
   ) {}
 
   private async resolveCover(
@@ -72,9 +87,13 @@ export class PublicWritingService {
   }
 
   async list(query: ListPublicWritingQuery): Promise<WritingPublicListDto> {
+    const settings = await this.site.getOrCreateSettings();
+    const sort = query.sort ?? 'publishedAtDesc';
     const result = await this.writing.listPublishedPublic({
       q: query.q,
       tag: query.tag,
+      seriesSlug: query.series,
+      sort,
       featuredOnHub: query.featuredOnHub,
       excludeFeaturedOnHub: query.excludeFeaturedOnHub,
       page: query.page,
@@ -84,10 +103,32 @@ export class PublicWritingService {
     const items = await Promise.all(
       result.items.map((row) => this.cardFromRow(row, cache)),
     );
+
+    let seriesSections: WritingPublicListDto['seriesSections'];
+    if (shouldAttachSeriesSections(query)) {
+      const sections = await this.writing.listPublishedSeriesSections();
+      seriesSections = await Promise.all(
+        sections.map(async (section) => ({
+          slug: section.series.slug,
+          title: section.series.title,
+          ...(section.series.summary
+            ? { summary: section.series.summary }
+            : {}),
+          items: await Promise.all(
+            section.articles.map((row) => this.cardFromRow(row, cache)),
+          ),
+        })),
+      );
+      if (seriesSections.length === 0) {
+        seriesSections = undefined;
+      }
+    }
+
     return {
-      intro: null,
+      intro: settings.writingHubIntro ?? null,
       items,
       meta: result.meta,
+      ...(seriesSections ? { seriesSections } : {}),
     };
   }
 
@@ -95,17 +136,18 @@ export class PublicWritingService {
     row: ArticleRow,
     cache: Map<string, CoverResolved>,
   ): Promise<WritingPublicDetail> {
-    const base = this.writing.toPublicDetail(row);
+    const detail = this.writing.toPublicDetail(row);
     const cover = await this.resolveCover(row.coverMediaId, cache);
-    const card = this.attachCoverToCard(base, cover);
+    const withCover = this.attachCoverToCard(
+      this.writing.toPublicCard(row),
+      cover,
+    );
     return {
-      ...card,
-      body: base.body,
-      ...(base.subtitle !== undefined ? { subtitle: base.subtitle } : {}),
-      ...(base.byline !== undefined ? { byline: base.byline } : {}),
+      ...detail,
+      ...(withCover.coverUrl
+        ? { coverUrl: withCover.coverUrl, coverAlt: withCover.coverAlt }
+        : {}),
       related: EMPTY_RELATED,
-      ...(row.seoTitle ? { seoTitle: row.seoTitle } : {}),
-      ...(row.seoDescription ? { seoDescription: row.seoDescription } : {}),
     };
   }
 

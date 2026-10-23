@@ -12,6 +12,7 @@ import {
   desc,
   eq,
   ilike,
+  isNull,
   lte,
   ne,
   or,
@@ -36,6 +37,7 @@ import type {
   ListAdminArticlesQuery,
   ListAdminArticlesSort,
   ListPublishedPublicWritingQuery,
+  PublishedWritingSeriesSection,
   PublishArticleOptions,
   UpdateArticleInput,
   WritingPublicCard,
@@ -540,10 +542,10 @@ export class WritingService {
     return row;
   }
 
-  private buildPublishedPublicWhere(
+  private async buildPublishedPublicWhere(
     query: ListPublishedPublicWritingQuery,
     now: Date,
-  ): SQL {
+  ): Promise<SQL> {
     const conditions: SQL[] = [articleVisibleSql(now)];
 
     const q = query.q?.trim();
@@ -562,6 +564,20 @@ export class WritingService {
     if (tag) {
       conditions.push(sql`${articles.tags} @> ARRAY[${tag}]::text[]`);
     }
+    const seriesSlug = query.seriesSlug?.trim();
+    if (seriesSlug) {
+      const [series] = await this.db
+        .select({ id: writingSeries.id })
+        .from(writingSeries)
+        .where(eq(writingSeries.slug, seriesSlug))
+        .limit(1);
+      if (!series) {
+        return sql`false`;
+      }
+      conditions.push(eq(articles.seriesId, series.id));
+    } else if (!q && !tag) {
+      conditions.push(isNull(articles.seriesId));
+    }
     if (query.featuredOnHub === true) {
       conditions.push(eq(articles.featuredOnHub, true));
     }
@@ -570,6 +586,13 @@ export class WritingService {
     }
 
     return and(...conditions)!;
+  }
+
+  private publishedPublicOrderBy(sort?: ListPublishedPublicWritingQuery['sort']) {
+    if (sort === 'titleAsc') {
+      return [asc(articles.title), desc(articles.publishedAt)];
+    }
+    return [desc(articles.publishedAt), asc(articles.title)];
   }
 
   async listPublishedPublic(
@@ -582,7 +605,7 @@ export class WritingService {
       MAX_LIST_LIMIT,
     );
     const offset = (page - 1) * limit;
-    const whereClause = this.buildPublishedPublicWhere(query, now);
+    const whereClause = await this.buildPublishedPublicWhere(query, now);
 
     const [countRow] = await this.db
       .select({ total: count() })
@@ -594,11 +617,38 @@ export class WritingService {
       .select()
       .from(articles)
       .where(whereClause)
-      .orderBy(desc(articles.publishedAt), asc(articles.title))
+      .orderBy(...this.publishedPublicOrderBy(query.sort))
       .limit(limit)
       .offset(offset);
 
     return buildPaginatedResponse(items, { page, limit, total });
+  }
+
+  async listPublishedSeriesSections(
+    now = new Date(),
+  ): Promise<PublishedWritingSeriesSection[]> {
+    const rows = await this.db
+      .select({ series: writingSeries, article: articles })
+      .from(writingSeries)
+      .innerJoin(articles, eq(articles.seriesId, writingSeries.id))
+      .where(articleVisibleSql(now))
+      .orderBy(
+        asc(writingSeries.sortOrder),
+        asc(writingSeries.title),
+        asc(articles.seriesSortOrder),
+        desc(articles.publishedAt),
+      );
+
+    const bySeries = new Map<string, PublishedWritingSeriesSection>();
+    for (const row of rows) {
+      let entry = bySeries.get(row.series.id);
+      if (!entry) {
+        entry = { series: row.series, articles: [] };
+        bySeries.set(row.series.id, entry);
+      }
+      entry.articles.push(row.article);
+    }
+    return [...bySeries.values()];
   }
 
   async listPublished(now = new Date()): Promise<ArticleRow[]> {

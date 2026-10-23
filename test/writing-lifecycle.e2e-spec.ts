@@ -18,6 +18,7 @@ import { isPubliclyVisible } from '../src/common/publishing/is-publicly-visible'
 import type { PublishStatus } from '../src/common/publishing/publish-status';
 import { articlePublishChecklist } from '../src/domain/writing/article-publish-checklist';
 import { MediaService } from '../src/domain/media/media.service';
+import { SiteService } from '../src/domain/site/site.service';
 import { recomputeReadingStats } from '../src/domain/writing/writing-reading-stats';
 import { WritingService } from '../src/domain/writing/writing.service';
 import { articleRow } from '../src/domain/writing/writing.test-helpers';
@@ -177,11 +178,19 @@ describe('Writing lifecycle (e2e)', () => {
     }),
     toPublicCard: vi.fn((row: ArticleRow) => domain.toPublicCard(row)),
     toPublicDetail: vi.fn((row: ArticleRow) => domain.toPublicDetail(row)),
+    listPublishedSeriesSections: vi.fn(async () => []),
+    adjacentPublishedSlugs: vi.fn(async () => ({})),
   };
 
   const mediaMock: Partial<MediaService> = {
     findById: vi.fn(async () => {
       throw new NotFoundException('Media not found');
+    }),
+  };
+
+  const siteMock: Partial<SiteService> = {
+    getOrCreateSettings: vi.fn().mockResolvedValue({
+      writingHubIntro: null,
     }),
   };
 
@@ -196,6 +205,7 @@ describe('Writing lifecycle (e2e)', () => {
         PublicWritingService,
         { provide: WritingService, useValue: writingMock },
         { provide: MediaService, useValue: mediaMock },
+        { provide: SiteService, useValue: siteMock },
       ],
     })
       .overrideGuard(AdminAuthGuard)

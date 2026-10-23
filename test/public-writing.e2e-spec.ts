@@ -9,6 +9,7 @@ import { buildPaginatedResponse } from '../src/common/pagination/paginated-respo
 import { isPubliclyVisible } from '../src/common/publishing/is-publicly-visible';
 import type { PublishStatus } from '../src/common/publishing/publish-status';
 import { MediaService } from '../src/domain/media/media.service';
+import { SiteService } from '../src/domain/site/site.service';
 import { WritingService } from '../src/domain/writing/writing.service';
 import { articleRow } from '../src/domain/writing/writing.test-helpers';
 import type { ArticleRow } from '../src/domain/writing/writing.types';
@@ -70,6 +71,7 @@ describe('Public writing (e2e)', () => {
       const service = new WritingService({} as never, {} as never);
       return service.toPublicDetail(row);
     }),
+    listPublishedSeriesSections: vi.fn(async () => []),
     adjacentPublishedSlugs: vi.fn(async (slug: string) => {
       const slugs = visibleRows()
         .sort(
@@ -83,6 +85,14 @@ describe('Public writing (e2e)', () => {
         ...(index > 0 ? { prevSlug: slugs[index - 1] } : {}),
         ...(index < slugs.length - 1 ? { nextSlug: slugs[index + 1] } : {}),
       };
+    }),
+  };
+
+  const siteMock: Partial<SiteService> = {
+    getOrCreateSettings: vi.fn().mockResolvedValue({
+      writingHubIntro: 'Writing hub intro',
+      projectsHubIntro: null,
+      researchHubIntro: null,
     }),
   };
 
@@ -116,6 +126,7 @@ describe('Public writing (e2e)', () => {
         PublicWritingService,
         { provide: WritingService, useValue: writingMock },
         { provide: MediaService, useValue: mediaMock },
+        { provide: SiteService, useValue: siteMock },
       ],
     }).compile();
 
@@ -167,7 +178,24 @@ describe('Public writing (e2e)', () => {
     expect(slugs).toContain('due');
     expect(slugs).not.toContain('draft');
     expect(slugs).not.toContain('future');
-    expect(res.body.data.intro).toBeNull();
+    expect(res.body.data.intro).toBe('Writing hub intro');
+  });
+
+  it('accepts series and sort query params', async () => {
+    bySlug.set(
+      'live',
+      articleRow({
+        slug: 'live',
+        publishStatus: 'published',
+        publishedAt: new Date(),
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .get('/api/v1/public/writing?series=unknown-series&sort=titleAsc')
+      .expect(200);
+
+    expect(writingMock.listPublishedPublic).toHaveBeenCalled();
   });
 
   it('returns detail for published slug and 404 for draft', async () => {

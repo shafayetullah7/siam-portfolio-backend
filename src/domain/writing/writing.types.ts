@@ -63,13 +63,24 @@ export type PublishArticleOptions = {
   confirmWarnings?: boolean;
 };
 
+export type ListPublishedPublicWritingSort =
+  | 'publishedAtDesc'
+  | 'titleAsc';
+
 export type ListPublishedPublicWritingQuery = {
   q?: string;
   tag?: string;
+  seriesSlug?: string;
+  sort?: ListPublishedPublicWritingSort;
   page?: number;
   limit?: number;
   featuredOnHub?: boolean;
   excludeFeaturedOnHub?: boolean;
+};
+
+export type PublishedWritingSeriesSection = {
+  series: WritingSeriesRow;
+  articles: ArticleRow[];
 };
 
 export type ListAdminArticlesSort =
