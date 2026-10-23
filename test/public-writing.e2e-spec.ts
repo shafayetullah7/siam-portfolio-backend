@@ -8,7 +8,11 @@ import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter
 import { buildPaginatedResponse } from '../src/common/pagination/paginated-response';
 import { isPubliclyVisible } from '../src/common/publishing/is-publicly-visible';
 import type { PublishStatus } from '../src/common/publishing/publish-status';
+import { AppConfigService } from '../src/config/app-config.service';
 import { MediaService } from '../src/domain/media/media.service';
+import { ProjectsService } from '../src/domain/projects/projects.service';
+import { PublicationsService } from '../src/domain/publications/publications.service';
+import { ResearchService } from '../src/domain/research/research.service';
 import { SiteService } from '../src/domain/site/site.service';
 import { WritingService } from '../src/domain/writing/writing.service';
 import { articleRow } from '../src/domain/writing/writing.test-helpers';
@@ -86,6 +90,29 @@ describe('Public writing (e2e)', () => {
         ...(index < slugs.length - 1 ? { nextSlug: slugs[index + 1] } : {}),
       };
     }),
+    adjacentInSeriesSlugs: vi.fn(async () => ({})),
+    getSeriesById: vi.fn(async () => null),
+    listPublicationIdsForArticle: vi.fn(async () => []),
+    listProjectIdsForArticle: vi.fn(async () => []),
+    listThemeIdsForArticle: vi.fn(async () => []),
+    listRelatedArticleIdsForArticle: vi.fn(async () => []),
+    listPublishedCardsByIds: vi.fn(async () => []),
+  };
+
+  const publicationsMock: Partial<PublicationsService> = {
+    listPublishedCardsByIds: vi.fn(async () => []),
+  };
+
+  const projectsMock: Partial<ProjectsService> = {
+    listPublishedCardsByIds: vi.fn(async () => []),
+  };
+
+  const researchMock: Partial<ResearchService> = {
+    listPublishedThemeCardsByIds: vi.fn(async () => []),
+  };
+
+  const appConfigMock: Partial<AppConfigService> = {
+    frontendUrl: 'http://localhost:5001',
   };
 
   const siteMock: Partial<SiteService> = {
@@ -93,6 +120,7 @@ describe('Public writing (e2e)', () => {
       writingHubIntro: 'Writing hub intro',
       projectsHubIntro: null,
       researchHubIntro: null,
+      siteName: 'SIAM',
     }),
   };
 
@@ -125,8 +153,12 @@ describe('Public writing (e2e)', () => {
       providers: [
         PublicWritingService,
         { provide: WritingService, useValue: writingMock },
+        { provide: PublicationsService, useValue: publicationsMock },
+        { provide: ProjectsService, useValue: projectsMock },
+        { provide: ResearchService, useValue: researchMock },
         { provide: MediaService, useValue: mediaMock },
         { provide: SiteService, useValue: siteMock },
+        { provide: AppConfigService, useValue: appConfigMock },
       ],
     }).compile();
 
@@ -296,5 +328,36 @@ describe('Public writing (e2e)', () => {
     expect(noCover.coverUrl).toBeUndefined();
     expect(withCover.coverUrl).toBe('https://cdn.example/cover.jpg');
     expect(withCover.coverAlt).toBe('Cover alt');
+  });
+
+  it('returns RSS feed for published articles only', async () => {
+    bySlug.set(
+      'live',
+      articleRow({
+        slug: 'live',
+        title: 'Live post',
+        summary: 'Summary',
+        publishStatus: 'published',
+        publishedAt: new Date('2024-01-15'),
+      }),
+    );
+    bySlug.set('draft', articleRow({ slug: 'draft', publishStatus: 'draft' }));
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/public/writing/feed.xml')
+      .expect(200);
+
+    expect(res.headers['content-type']).toMatch(/rss\+xml/);
+    expect(res.text).toContain('<rss version="2.0">');
+    expect(res.text).toContain('Live post');
+    expect(res.text).not.toContain('draft');
+    expect(res.headers.etag).toBeDefined();
+  });
+
+  it('does not treat feed.xml as article slug', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/public/writing/feed.xml')
+      .expect(200);
+    expect(writingMock.findPublishedBySlug).not.toHaveBeenCalledWith('feed.xml');
   });
 });

@@ -1,6 +1,9 @@
 import type { PublishStatus } from '../../common/publishing/publish-status';
 import type { articles } from '../../db/schema/writing/articles';
 import type { writingSeries } from '../../db/schema/writing/writing-series';
+import type { ProjectPublicCard } from '../projects/projects.types';
+import type { PublicationPublicCard } from '../publications/publications.types';
+import type { ResearchThemePublicLinkCard } from '../research/research.types';
 
 export type ArticleRow = typeof articles.$inferSelect;
 export type WritingSeriesRow = typeof writingSeries.$inferSelect;
@@ -42,21 +45,39 @@ export type WritingPublicCard = {
 };
 
 export type WritingPublicRelated = {
-  articles: [];
-  publications: [];
-  projects: [];
-  themes: [];
+  articles: WritingPublicCard[];
+  publications: PublicationPublicCard[];
+  projects: ProjectPublicCard[];
+  themes: ResearchThemePublicLinkCard[];
+};
+
+export type ArticleRelations = {
+  publicationIds: string[];
+  projectIds: string[];
+  themeIds: string[];
+  relatedArticleIds: string[];
+};
+
+export type ReplaceArticleRelationsInput = {
+  publicationIds?: string[];
+  projectIds?: string[];
+  themeIds?: string[];
+  relatedArticleIds?: string[];
 };
 
 export type WritingPublicDetail = WritingPublicCard & {
   subtitle?: string | null;
   body: string;
+  wordCount?: number | null;
   byline?: string | null;
   related: WritingPublicRelated;
   seoTitle?: string | null;
   seoDescription?: string | null;
   prevSlug?: string;
   nextSlug?: string;
+  seriesPrevSlug?: string;
+  seriesNextSlug?: string;
+  series?: { slug: string; title: string };
 };
 
 export type PublishArticleOptions = {

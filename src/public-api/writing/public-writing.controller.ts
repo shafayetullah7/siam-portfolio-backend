@@ -1,5 +1,12 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import {
   listPublicWritingQuerySchema,
   type ListPublicWritingQuery,
@@ -20,6 +27,16 @@ export class PublicWritingController {
     query: ListPublicWritingQuery,
   ) {
     return await this.writing.list(query);
+  }
+
+  @Get('feed.xml')
+  @ApiOperation({ summary: 'RSS 2.0 feed of published articles' })
+  async feed(@Res() res: Response) {
+    const { xml, etag } = await this.writing.buildRssFeed();
+    res.set('Content-Type', 'application/rss+xml; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=300');
+    res.set('ETag', etag);
+    res.send(xml);
   }
 
   @Get(':slug')

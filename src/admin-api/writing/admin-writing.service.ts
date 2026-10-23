@@ -131,4 +131,20 @@ export class AdminWritingService {
     const row = await this.writing.schedule(id, scheduledAt);
     return this.mapAdmin(row);
   }
+
+  async getRelations(id: string) {
+    return await this.writing.getArticleRelations(id);
+  }
+
+  async putRelations(
+    id: string,
+    body: {
+      publicationIds?: string[];
+      projectIds?: string[];
+      themeIds?: string[];
+      relatedArticleIds?: string[];
+    },
+  ) {
+    return await this.writing.replaceArticleRelations(id, body);
+  }
 }

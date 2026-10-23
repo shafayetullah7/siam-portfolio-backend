@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -28,6 +29,10 @@ import {
   scheduleArticleBodySchema,
   type ScheduleArticleBody,
 } from './dto/schedule-article.dto';
+import {
+  putArticleRelationsBodySchema,
+  type PutArticleRelationsBody,
+} from './dto/put-article-relations.dto';
 import {
   updateArticleBodySchema,
   type UpdateArticleBody,
@@ -65,6 +70,23 @@ export class AdminWritingController {
   @ApiOperation({ summary: 'Public detail preview (any status)' })
   async preview(@Param('id', { schema: articleIdParamSchema }) id: string) {
     return await this.writing.preview(id);
+  }
+
+  @Get(':id/relations')
+  @ApiOperation({ summary: 'Get article relation ids' })
+  async getRelations(
+    @Param('id', { schema: articleIdParamSchema }) id: string,
+  ) {
+    return await this.writing.getRelations(id);
+  }
+
+  @Put(':id/relations')
+  @ApiOperation({ summary: 'Replace article relations' })
+  async putRelations(
+    @Param('id', { schema: articleIdParamSchema }) id: string,
+    @Body({ schema: putArticleRelationsBodySchema }) body: PutArticleRelationsBody,
+  ) {
+    return await this.writing.putRelations(id, body);
   }
 
   @Get(':id/publish-check')

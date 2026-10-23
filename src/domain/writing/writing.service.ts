@@ -14,6 +14,7 @@ import {
   ilike,
   isNull,
   lte,
+  inArray,
   ne,
   or,
   sql,
@@ -27,11 +28,21 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { isPubliclyVisible } from '../../common/publishing/is-publicly-visible';
 import type { PublishStatus } from '../../common/publishing/publish-status';
 import { MediaService } from '../media/media.service';
+import { projects } from '../../db/schema/projects';
+import { publications } from '../../db/schema/publications';
+import { researchThemes } from '../../db/schema/research';
 import { articles } from '../../db/schema/writing/articles';
+import {
+  writingArticleProjects,
+  writingArticlePublications,
+  writingArticleRelated,
+  writingArticleResearchThemes,
+} from '../../db/schema/writing/writing-article-junctions';
 import { writingSeries } from '../../db/schema/writing/writing-series';
 import { articlePublishChecklist } from './article-publish-checklist';
 import { recomputeReadingStats } from './writing-reading-stats';
 import type {
+  ArticleRelations,
   ArticleRow,
   CreateArticleInput,
   ListAdminArticlesQuery,
@@ -39,6 +50,7 @@ import type {
   ListPublishedPublicWritingQuery,
   PublishedWritingSeriesSection,
   PublishArticleOptions,
+  ReplaceArticleRelationsInput,
   UpdateArticleInput,
   WritingPublicCard,
   WritingPublicDetail,
@@ -48,6 +60,19 @@ const MAX_FEATURED_ON_HUB = 1;
 const DEFAULT_ADMIN_LIST_LIMIT = 24;
 const DEFAULT_PUBLIC_LIST_LIMIT = 24;
 const MAX_LIST_LIMIT = 100;
+const MAX_ARTICLE_RELATIONS = 20;
+
+function dedupeIds(ids: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const id of ids) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      unique.push(id);
+    }
+  }
+  return unique;
+}
 
 function articleVisibleSql(now: Date): SQL {
   return or(
@@ -126,6 +151,7 @@ export class WritingService {
       ...this.toPublicCard(row),
       ...(row.subtitle ? { subtitle: row.subtitle } : {}),
       body: row.body,
+      ...(row.wordCount != null ? { wordCount: row.wordCount } : {}),
       ...(row.byline ? { byline: row.byline } : {}),
       related: {
         articles: [],
@@ -383,8 +409,26 @@ export class WritingService {
 
   async getPublishChecklist(id: string) {
     const row = await this.findByIdAdmin(id);
-    const context = await this.coverChecklistContext(row.coverMediaId);
-    return articlePublishChecklist(row, context);
+    const [
+      coverContext,
+      unpublishedPublicationTitles,
+      unpublishedProjectTitles,
+      unpublishedThemeTitles,
+      unpublishedRelatedArticleTitles,
+    ] = await Promise.all([
+      this.coverChecklistContext(row.coverMediaId),
+      this.listUnpublishedLinkedPublicationTitles(id),
+      this.listUnpublishedLinkedProjectTitles(id),
+      this.listUnpublishedLinkedThemeTitles(id),
+      this.listUnpublishedLinkedRelatedArticleTitles(id),
+    ]);
+    return articlePublishChecklist(row, {
+      ...coverContext,
+      unpublishedPublicationTitles,
+      unpublishedProjectTitles,
+      unpublishedThemeTitles,
+      unpublishedRelatedArticleTitles,
+    });
   }
 
   async previewForAdmin(id: string): Promise<WritingPublicDetail> {
@@ -677,5 +721,385 @@ export class WritingService {
       ...(index > 0 ? { prevSlug: slugs[index - 1] } : {}),
       ...(index < slugs.length - 1 ? { nextSlug: slugs[index + 1] } : {}),
     };
+  }
+
+  async getSeriesById(id: string): Promise<typeof writingSeries.$inferSelect | null> {
+    const [row] = await this.db
+      .select()
+      .from(writingSeries)
+      .where(eq(writingSeries.id, id))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async adjacentInSeriesSlugs(
+    row: ArticleRow,
+    now = new Date(),
+  ): Promise<{ seriesPrevSlug?: string; seriesNextSlug?: string }> {
+    if (!row.seriesId) {
+      return {};
+    }
+    const peers = await this.db
+      .select()
+      .from(articles)
+      .where(
+        and(eq(articles.seriesId, row.seriesId), articleVisibleSql(now)),
+      )
+      .orderBy(
+        sql`${articles.seriesSortOrder} asc nulls last`,
+        desc(articles.publishedAt),
+      );
+    const slugs = peers.map((peer) => peer.slug);
+    const index = slugs.indexOf(row.slug);
+    if (index === -1) {
+      return {};
+    }
+    return {
+      ...(index > 0 ? { seriesPrevSlug: slugs[index - 1] } : {}),
+      ...(index < slugs.length - 1
+        ? { seriesNextSlug: slugs[index + 1] }
+        : {}),
+    };
+  }
+
+  async getArticleRelations(articleId: string): Promise<ArticleRelations> {
+    await this.findByIdAdmin(articleId);
+    const [publicationIds, projectIds, themeIds, relatedArticleIds] =
+      await Promise.all([
+        this.listPublicationIdsForArticle(articleId),
+        this.listProjectIdsForArticle(articleId),
+        this.listThemeIdsForArticle(articleId),
+        this.listRelatedArticleIdsForArticle(articleId),
+      ]);
+    return {
+      publicationIds,
+      projectIds,
+      themeIds,
+      relatedArticleIds,
+    };
+  }
+
+  async replaceArticleRelations(
+    articleId: string,
+    body: ReplaceArticleRelationsInput,
+  ): Promise<ArticleRelations> {
+    await this.findByIdAdmin(articleId);
+
+    const publicationIds = dedupeIds(body.publicationIds ?? []);
+    const projectIds = dedupeIds(body.projectIds ?? []);
+    const themeIds = dedupeIds(body.themeIds ?? []);
+    let relatedArticleIds = dedupeIds(body.relatedArticleIds ?? []);
+
+    for (const [label, ids] of [
+      ['publications', publicationIds],
+      ['projects', projectIds],
+      ['themes', themeIds],
+      ['related articles', relatedArticleIds],
+    ] as const) {
+      if (ids.length > MAX_ARTICLE_RELATIONS) {
+        throw new BadRequestException(
+          `At most ${MAX_ARTICLE_RELATIONS} ${label} allowed`,
+        );
+      }
+    }
+
+    relatedArticleIds = relatedArticleIds.filter((id) => id !== articleId);
+
+    await this.assertPublicationIdsExist(publicationIds);
+    await this.assertProjectIdsExist(projectIds);
+    await this.assertThemeIdsExist(themeIds);
+    await this.assertArticleIdsExist(relatedArticleIds);
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .delete(writingArticlePublications)
+        .where(eq(writingArticlePublications.articleId, articleId));
+      if (publicationIds.length > 0) {
+        await tx.insert(writingArticlePublications).values(
+          publicationIds.map((publicationId, index) => ({
+            articleId,
+            publicationId,
+            sortOrder: index,
+          })),
+        );
+      }
+
+      await tx
+        .delete(writingArticleProjects)
+        .where(eq(writingArticleProjects.articleId, articleId));
+      if (projectIds.length > 0) {
+        await tx.insert(writingArticleProjects).values(
+          projectIds.map((projectId, index) => ({
+            articleId,
+            projectId,
+            sortOrder: index,
+          })),
+        );
+      }
+
+      await tx
+        .delete(writingArticleResearchThemes)
+        .where(eq(writingArticleResearchThemes.articleId, articleId));
+      if (themeIds.length > 0) {
+        await tx.insert(writingArticleResearchThemes).values(
+          themeIds.map((themeId, index) => ({
+            articleId,
+            themeId,
+            sortOrder: index,
+          })),
+        );
+      }
+
+      await tx
+        .delete(writingArticleRelated)
+        .where(eq(writingArticleRelated.articleId, articleId));
+      if (relatedArticleIds.length > 0) {
+        await tx.insert(writingArticleRelated).values(
+          relatedArticleIds.map((relatedArticleId, index) => ({
+            articleId,
+            relatedArticleId,
+            sortOrder: index,
+          })),
+        );
+      }
+    });
+
+    return {
+      publicationIds,
+      projectIds,
+      themeIds,
+      relatedArticleIds,
+    };
+  }
+
+  async listPublicationIdsForArticle(articleId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ publicationId: writingArticlePublications.publicationId })
+      .from(writingArticlePublications)
+      .where(eq(writingArticlePublications.articleId, articleId))
+      .orderBy(
+        asc(writingArticlePublications.sortOrder),
+        asc(writingArticlePublications.createdAt),
+      );
+    return rows.map((row) => row.publicationId);
+  }
+
+  async listProjectIdsForArticle(articleId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ projectId: writingArticleProjects.projectId })
+      .from(writingArticleProjects)
+      .where(eq(writingArticleProjects.articleId, articleId))
+      .orderBy(
+        asc(writingArticleProjects.sortOrder),
+        asc(writingArticleProjects.createdAt),
+      );
+    return rows.map((row) => row.projectId);
+  }
+
+  async listThemeIdsForArticle(articleId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ themeId: writingArticleResearchThemes.themeId })
+      .from(writingArticleResearchThemes)
+      .where(eq(writingArticleResearchThemes.articleId, articleId))
+      .orderBy(
+        asc(writingArticleResearchThemes.sortOrder),
+        asc(writingArticleResearchThemes.createdAt),
+      );
+    return rows.map((row) => row.themeId);
+  }
+
+  async listRelatedArticleIdsForArticle(articleId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ relatedArticleId: writingArticleRelated.relatedArticleId })
+      .from(writingArticleRelated)
+      .where(eq(writingArticleRelated.articleId, articleId))
+      .orderBy(
+        asc(writingArticleRelated.sortOrder),
+        asc(writingArticleRelated.createdAt),
+      );
+    return rows.map((row) => row.relatedArticleId);
+  }
+
+  async listUnpublishedLinkedPublicationTitles(
+    articleId: string,
+    now = new Date(),
+  ): Promise<string[]> {
+    const rows = await this.db
+      .select({
+        title: publications.title,
+        publishStatus: publications.publishStatus,
+        scheduledAt: publications.scheduledAt,
+      })
+      .from(writingArticlePublications)
+      .innerJoin(
+        publications,
+        eq(writingArticlePublications.publicationId, publications.id),
+      )
+      .where(eq(writingArticlePublications.articleId, articleId))
+      .orderBy(asc(writingArticlePublications.sortOrder));
+    return rows
+      .filter(
+        (row) =>
+          !isPubliclyVisible(
+            row.publishStatus as PublishStatus,
+            row.scheduledAt,
+            now,
+          ),
+      )
+      .map((row) => row.title);
+  }
+
+  async listUnpublishedLinkedProjectTitles(
+    articleId: string,
+    now = new Date(),
+  ): Promise<string[]> {
+    const rows = await this.db
+      .select({
+        title: projects.title,
+        publishStatus: projects.publishStatus,
+        scheduledAt: projects.scheduledAt,
+      })
+      .from(writingArticleProjects)
+      .innerJoin(projects, eq(writingArticleProjects.projectId, projects.id))
+      .where(eq(writingArticleProjects.articleId, articleId))
+      .orderBy(asc(writingArticleProjects.sortOrder));
+    return rows
+      .filter(
+        (row) =>
+          !isPubliclyVisible(
+            row.publishStatus as PublishStatus,
+            row.scheduledAt,
+            now,
+          ),
+      )
+      .map((row) => row.title);
+  }
+
+  async listUnpublishedLinkedThemeTitles(
+    articleId: string,
+    now = new Date(),
+  ): Promise<string[]> {
+    const rows = await this.db
+      .select({
+        title: researchThemes.title,
+        publishStatus: researchThemes.publishStatus,
+        scheduledAt: researchThemes.scheduledAt,
+      })
+      .from(writingArticleResearchThemes)
+      .innerJoin(
+        researchThemes,
+        eq(writingArticleResearchThemes.themeId, researchThemes.id),
+      )
+      .where(eq(writingArticleResearchThemes.articleId, articleId))
+      .orderBy(asc(writingArticleResearchThemes.sortOrder));
+    return rows
+      .filter(
+        (row) =>
+          !isPubliclyVisible(
+            row.publishStatus as PublishStatus,
+            row.scheduledAt,
+            now,
+          ),
+      )
+      .map((row) => row.title);
+  }
+
+  async listUnpublishedLinkedRelatedArticleTitles(
+    articleId: string,
+    now = new Date(),
+  ): Promise<string[]> {
+    const rows = await this.db
+      .select({
+        title: articles.title,
+        publishStatus: articles.publishStatus,
+        scheduledAt: articles.scheduledAt,
+      })
+      .from(writingArticleRelated)
+      .innerJoin(
+        articles,
+        eq(writingArticleRelated.relatedArticleId, articles.id),
+      )
+      .where(eq(writingArticleRelated.articleId, articleId))
+      .orderBy(asc(writingArticleRelated.sortOrder));
+    return rows
+      .filter(
+        (row) =>
+          !isPubliclyVisible(
+            row.publishStatus as PublishStatus,
+            row.scheduledAt,
+            now,
+          ),
+      )
+      .map((row) => row.title);
+  }
+
+  async listPublishedCardsByIds(
+    ids: string[],
+    now = new Date(),
+  ): Promise<WritingPublicCard[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select()
+      .from(articles)
+      .where(inArray(articles.id, ids));
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return ids
+      .map((id) => byId.get(id))
+      .filter(
+        (row): row is ArticleRow =>
+          row != null &&
+          isPubliclyVisible(
+            row.publishStatus as PublishStatus,
+            row.scheduledAt,
+            now,
+          ),
+      )
+      .map((row) => this.toPublicCard(row));
+  }
+
+  private async assertPublicationIdsExist(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const rows = await this.db
+      .select({ id: publications.id })
+      .from(publications)
+      .where(inArray(publications.id, ids));
+    if (rows.length !== ids.length) {
+      throw new BadRequestException('One or more publications not found');
+    }
+  }
+
+  private async assertProjectIdsExist(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const rows = await this.db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(inArray(projects.id, ids));
+    if (rows.length !== ids.length) {
+      throw new BadRequestException('One or more projects not found');
+    }
+  }
+
+  private async assertThemeIdsExist(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const rows = await this.db
+      .select({ id: researchThemes.id })
+      .from(researchThemes)
+      .where(inArray(researchThemes.id, ids));
+    if (rows.length !== ids.length) {
+      throw new BadRequestException('One or more research themes not found');
+    }
+  }
+
+  private async assertArticleIdsExist(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const rows = await this.db
+      .select({ id: articles.id })
+      .from(articles)
+      .where(inArray(articles.id, ids));
+    if (rows.length !== ids.length) {
+      throw new BadRequestException('One or more articles not found');
+    }
   }
 }

@@ -9,6 +9,10 @@ export type PublishChecklistItem = {
 export type ArticlePublishChecklistContext = {
   coverAlt?: string | null;
   coverMediaMissing?: boolean;
+  unpublishedPublicationTitles?: string[];
+  unpublishedProjectTitles?: string[];
+  unpublishedThemeTitles?: string[];
+  unpublishedRelatedArticleTitles?: string[];
 };
 
 export type ArticlePublishChecklistResult = {
@@ -136,6 +140,38 @@ export function articlePublishChecklist(
       code: 'republish_material_update',
       message:
         'This article was published before. Confirm this publish reflects a material update.',
+    });
+  }
+
+  const unpublishedPubs = context.unpublishedPublicationTitles ?? [];
+  if (unpublishedPubs.length > 0) {
+    warnings.push({
+      code: 'related_publications_unpublished',
+      message: `Linked publications are not public: ${unpublishedPubs.join(', ')}`,
+    });
+  }
+
+  const unpublishedProjects = context.unpublishedProjectTitles ?? [];
+  if (unpublishedProjects.length > 0) {
+    warnings.push({
+      code: 'related_projects_unpublished',
+      message: `Linked projects are not public: ${unpublishedProjects.join(', ')}`,
+    });
+  }
+
+  const unpublishedThemes = context.unpublishedThemeTitles ?? [];
+  if (unpublishedThemes.length > 0) {
+    warnings.push({
+      code: 'related_themes_unpublished',
+      message: `Linked research themes are not public: ${unpublishedThemes.join(', ')}`,
+    });
+  }
+
+  const unpublishedArticles = context.unpublishedRelatedArticleTitles ?? [];
+  if (unpublishedArticles.length > 0) {
+    warnings.push({
+      code: 'related_articles_unpublished',
+      message: `Linked articles are not published: ${unpublishedArticles.join(', ')}`,
     });
   }
 

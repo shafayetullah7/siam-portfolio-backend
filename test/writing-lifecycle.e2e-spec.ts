@@ -16,8 +16,12 @@ import { AdminAuthGuard } from '../src/common/guards/admin-auth.guard';
 import { buildPaginatedResponse } from '../src/common/pagination/paginated-response';
 import { isPubliclyVisible } from '../src/common/publishing/is-publicly-visible';
 import type { PublishStatus } from '../src/common/publishing/publish-status';
+import { AppConfigService } from '../src/config/app-config.service';
 import { articlePublishChecklist } from '../src/domain/writing/article-publish-checklist';
 import { MediaService } from '../src/domain/media/media.service';
+import { ProjectsService } from '../src/domain/projects/projects.service';
+import { PublicationsService } from '../src/domain/publications/publications.service';
+import { ResearchService } from '../src/domain/research/research.service';
 import { SiteService } from '../src/domain/site/site.service';
 import { recomputeReadingStats } from '../src/domain/writing/writing-reading-stats';
 import { WritingService } from '../src/domain/writing/writing.service';
@@ -180,6 +184,25 @@ describe('Writing lifecycle (e2e)', () => {
     toPublicDetail: vi.fn((row: ArticleRow) => domain.toPublicDetail(row)),
     listPublishedSeriesSections: vi.fn(async () => []),
     adjacentPublishedSlugs: vi.fn(async () => ({})),
+    adjacentInSeriesSlugs: vi.fn(async () => ({})),
+    getSeriesById: vi.fn(async () => null),
+    listPublicationIdsForArticle: vi.fn(async () => []),
+    listProjectIdsForArticle: vi.fn(async () => []),
+    listThemeIdsForArticle: vi.fn(async () => []),
+    listRelatedArticleIdsForArticle: vi.fn(async () => []),
+    listPublishedCardsByIds: vi.fn(async () => []),
+    getArticleRelations: vi.fn(async () => ({
+      publicationIds: [],
+      projectIds: [],
+      themeIds: [],
+      relatedArticleIds: [],
+    })),
+    replaceArticleRelations: vi.fn(async () => ({
+      publicationIds: [],
+      projectIds: [],
+      themeIds: [],
+      relatedArticleIds: [],
+    })),
   };
 
   const mediaMock: Partial<MediaService> = {
@@ -191,6 +214,7 @@ describe('Writing lifecycle (e2e)', () => {
   const siteMock: Partial<SiteService> = {
     getOrCreateSettings: vi.fn().mockResolvedValue({
       writingHubIntro: null,
+      siteName: 'SIAM',
     }),
   };
 
@@ -204,8 +228,18 @@ describe('Writing lifecycle (e2e)', () => {
         AdminWritingService,
         PublicWritingService,
         { provide: WritingService, useValue: writingMock },
+        { provide: PublicationsService, useValue: {
+          listPublishedCardsByIds: vi.fn(async () => []),
+        } },
+        { provide: ProjectsService, useValue: {
+          listPublishedCardsByIds: vi.fn(async () => []),
+        } },
+        { provide: ResearchService, useValue: {
+          listPublishedThemeCardsByIds: vi.fn(async () => []),
+        } },
         { provide: MediaService, useValue: mediaMock },
         { provide: SiteService, useValue: siteMock },
+        { provide: AppConfigService, useValue: { frontendUrl: 'http://localhost:5001' } },
       ],
     })
       .overrideGuard(AdminAuthGuard)
@@ -279,5 +313,65 @@ describe('Writing lifecycle (e2e)', () => {
     await request(app.getHttpServer())
       .get('/api/v1/public/writing/lifecycle-test')
       .expect(404);
+  });
+
+  it('includes published article in RSS feed then removes after unpublish', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/admin/writing')
+      .send({
+        slug: 'feed-lifecycle',
+        title: 'Feed Lifecycle Title',
+        summary: 'Summary for feed',
+        body: longBody(),
+        tags: ['essay'],
+      })
+      .expect(201);
+
+    const id = createRes.body.data.id as string;
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/writing/${id}/publish`)
+      .send({ confirmWarnings: true })
+      .expect(201);
+
+    const feed = await request(app.getHttpServer())
+      .get('/api/v1/public/writing/feed.xml')
+      .expect(200);
+
+    expect(feed.text).toContain('Feed Lifecycle Title');
+    expect(feed.text).toContain('/writing/feed-lifecycle');
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/writing/${id}/unpublish`)
+      .expect(201);
+
+    const feedAfter = await request(app.getHttpServer())
+      .get('/api/v1/public/writing/feed.xml')
+      .expect(200);
+
+    expect(feedAfter.text).not.toContain('Feed Lifecycle Title');
+  });
+
+  it('blocks publish when body is empty', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/admin/writing')
+      .send({
+        slug: 'empty-body',
+        title: 'Empty',
+        summary: 'Summary text',
+        body: '',
+        tags: ['essay'],
+      })
+      .expect(201);
+
+    const id = createRes.body.data.id as string;
+
+    const res = await request(app.getHttpServer())
+      .post(`/api/v1/admin/writing/${id}/publish`)
+      .send({ confirmWarnings: true })
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toMatch(/body/i);
   });
 });

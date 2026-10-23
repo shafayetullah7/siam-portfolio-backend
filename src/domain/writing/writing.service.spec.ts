@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { recomputeReadingStats } from './writing-reading-stats';
 import { WritingService } from './writing.service';
 import { articleRow } from './writing.test-helpers';
@@ -15,6 +15,29 @@ const mediaMock = {
 function writingService(db: unknown): WritingService {
   return new WritingService(db as never, mediaMock as never);
 }
+
+beforeEach(() => {
+  vi.spyOn(
+    WritingService.prototype,
+    'listUnpublishedLinkedPublicationTitles',
+  ).mockResolvedValue([]);
+  vi.spyOn(
+    WritingService.prototype,
+    'listUnpublishedLinkedProjectTitles',
+  ).mockResolvedValue([]);
+  vi.spyOn(
+    WritingService.prototype,
+    'listUnpublishedLinkedThemeTitles',
+  ).mockResolvedValue([]);
+  vi.spyOn(
+    WritingService.prototype,
+    'listUnpublishedLinkedRelatedArticleTitles',
+  ).mockResolvedValue([]);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function publishableBody(): string {
   return Array.from({ length: 100 }, (_, i) => `word${i}`).join(' ');
@@ -419,3 +442,4 @@ describe('WritingService lifecycle', () => {
     expect(count).toBe(1);
   });
 });
+

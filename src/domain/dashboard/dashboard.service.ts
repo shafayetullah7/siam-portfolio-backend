@@ -6,6 +6,7 @@ import { publications } from '../../db/schema/publications';
 import { projects } from '../../db/schema/projects';
 import { sitePages } from '../../db/schema/site-pages';
 import { media } from '../../db/schema/media';
+import { articles } from '../../db/schema/writing/articles';
 
 @Injectable()
 export class DashboardService {
@@ -50,6 +51,23 @@ export class DashboardService {
     );
     const projectCountBy = (status: string) =>
       projectCounts.find((c) => c.status === status)?.total ?? 0;
+    const writingStatuses = [
+      'draft',
+      'published',
+      'scheduled',
+      'archived',
+    ] as const;
+    const writingCounts = await Promise.all(
+      writingStatuses.map(async (status) => {
+        const [row] = await this.db
+          .select({ total: count() })
+          .from(articles)
+          .where(eq(articles.publishStatus, status));
+        return { status, total: Number(row?.total ?? 0) };
+      }),
+    );
+    const writingCountBy = (status: string) =>
+      writingCounts.find((c) => c.status === status)?.total ?? 0;
     return {
       pages: {
         draft: countBy('draft'),
@@ -68,6 +86,12 @@ export class DashboardService {
         published: projectCountBy('published'),
         scheduled: projectCountBy('scheduled'),
         archived: projectCountBy('archived'),
+      },
+      writing: {
+        draft: writingCountBy('draft'),
+        published: writingCountBy('published'),
+        scheduled: writingCountBy('scheduled'),
+        archived: writingCountBy('archived'),
       },
       media: mediaRows.length,
     };
