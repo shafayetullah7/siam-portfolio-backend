@@ -40,6 +40,7 @@ import {
   ACHIEVEMENT_KINDS,
   EXPERIENCE_KINDS,
   isAchievementKind,
+  isExperienceKind,
   type TimelineEntryKind,
 } from './timeline-kinds';
 import {
@@ -54,6 +55,7 @@ import type {
   ListPublicTimelineSort,
   ListPublishedByKindsOptions,
   PublishTimelineOptions,
+  ReorderTimelineEntriesInput,
   ReplaceEntryMediaInput,
   TimelineEntryAdmin,
   TimelineEntryMediaAdmin,
@@ -115,12 +117,15 @@ export class TimelineService {
     images: TimelinePublicImage[],
     options?: { href?: string },
   ): TimelinePublicCard {
+    const kind = row.kind as TimelineEntryKind;
     const href =
       options?.href ??
-      (row.slug ? this.hrefForSlug(row.slug) : undefined);
+      (row.slug && isAchievementKind(kind)
+        ? this.hrefForSlug(row.slug)
+        : undefined);
     return {
       id: row.id,
-      kind: row.kind as TimelineEntryKind,
+      kind,
       title: row.title,
       subtitle: row.subtitle,
       organization: row.organization,
@@ -132,7 +137,10 @@ export class TimelineService {
       proofUrl: row.proofUrl,
       images,
       ...(href ? { href } : {}),
-      ...(row.kind === 'certification' ? { expiresAt: row.expiresAt } : {}),
+      ...(kind === 'certification' ? { expiresAt: row.expiresAt } : {}),
+      ...(isExperienceKind(kind)
+        ? { summary: row.summary, isCurrent: row.isCurrent }
+        : {}),
     };
   }
 
@@ -180,6 +188,8 @@ export class TimelineService {
         return [desc(timelineEntries.startDate), asc(timelineEntries.title)];
       case 'titleAsc':
         return [asc(timelineEntries.title)];
+      case 'sortOrderAsc':
+        return [asc(timelineEntries.sortOrder), asc(timelineEntries.title)];
       case 'updatedAtDesc':
       default:
         return [desc(timelineEntries.updatedAt), asc(timelineEntries.title)];
@@ -246,6 +256,45 @@ export class TimelineService {
 
     const total = Number(countRow?.total ?? 0);
     return buildPaginatedResponse(items, { page, limit, total });
+  }
+
+  async reorderEntries(input: ReorderTimelineEntriesInput): Promise<void> {
+    const ids = input.items.map((item) => item.id);
+    const rows = await this.db
+      .select()
+      .from(timelineEntries)
+      .where(inArray(timelineEntries.id, ids));
+
+    if (rows.length !== ids.length) {
+      throw new NotFoundException('Timeline entry not found');
+    }
+
+    if (input.kinds && input.kinds.length > 0) {
+      const allowed = new Set(input.kinds);
+      for (const row of rows) {
+        if (!allowed.has(row.kind as TimelineEntryKind)) {
+          throw new BadRequestException(
+            'Entry kind not allowed in reorder scope',
+          );
+        }
+      }
+    }
+
+    const sortById = new Map(
+      input.items.map((item) => [item.id, item.sortOrder]),
+    );
+    const now = new Date();
+
+    await this.db.transaction(async (tx) => {
+      for (const id of ids) {
+        const sortOrder = sortById.get(id);
+        if (sortOrder === undefined) continue;
+        await tx
+          .update(timelineEntries)
+          .set({ sortOrder, updatedAt: now })
+          .where(eq(timelineEntries.id, id));
+      }
+    });
   }
 
   async create(input: CreateTimelineEntryInput): Promise<TimelineEntryRow> {

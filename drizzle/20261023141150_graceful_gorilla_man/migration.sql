@@ -1,0 +1,1 @@
+ALTER TABLE "site_settings" ADD COLUMN "experience_hub_intro" text;

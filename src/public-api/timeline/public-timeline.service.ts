@@ -61,6 +61,8 @@ export class PublicTimelineService {
       images: filterPublicImages(card.images),
       ...(card.href ? { href: card.href } : {}),
       ...(card.expiresAt !== undefined ? { expiresAt: card.expiresAt } : {}),
+      ...(card.summary !== undefined ? { summary: card.summary } : {}),
+      ...(card.isCurrent !== undefined ? { isCurrent: card.isCurrent } : {}),
     };
   }
 
@@ -116,13 +118,18 @@ export class PublicTimelineService {
   async listExperience(
     query: ListPublicTimelineQuery,
   ): Promise<TimelinePublicGroupedListDto> {
+    const settings = await this.site.getOrCreateSettings();
     const cards = await this.timeline.listPublishedExperience(
       this.listOptionsFromQuery(query),
     );
-    return this.buildSections(
+    const grouped = this.buildSections(
       cards.map((card) => this.mapCard(card)),
       EXPERIENCE_KINDS,
     );
+    return {
+      ...grouped,
+      intro: settings.experienceHubIntro ?? null,
+    };
   }
 
   private resolveKinds(

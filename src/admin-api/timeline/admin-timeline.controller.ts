@@ -34,6 +34,10 @@ import {
   type ScheduleTimelineEntryBody,
 } from './dto/schedule-timeline-entry.dto';
 import {
+  reorderTimelineEntriesBodySchema,
+  type ReorderTimelineEntriesBody,
+} from './dto/reorder-timeline-entries.dto';
+import {
   updateTimelineEntryBodySchema,
   type UpdateTimelineEntryBody,
 } from './dto/update-timeline-entry.dto';
@@ -58,6 +62,16 @@ export class AdminTimelineController {
     @Body({ schema: createTimelineEntryBodySchema }) body: CreateTimelineEntryBody,
   ) {
     return await this.timeline.create(body);
+  }
+
+  @Post('reorder')
+  @ApiOperation({ summary: 'Batch update sort order for timeline entries' })
+  async reorder(
+    @Body({ schema: reorderTimelineEntriesBodySchema })
+    body: ReorderTimelineEntriesBody,
+  ) {
+    await this.timeline.reorder(body);
+    return { ok: true };
   }
 
   @Get(':id/preview')

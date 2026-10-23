@@ -69,7 +69,24 @@ describe('Public timeline (e2e)', () => {
       return null;
     }),
     listPublishedAchievements: vi.fn(async () => [awardCard]),
-    listPublishedExperience: vi.fn(async () => []),
+    listPublishedExperience: vi.fn(async () => [
+      {
+        id: '00000000-0000-4000-8000-000000000002',
+        kind: 'education',
+        title: 'PhD',
+        subtitle: null,
+        organization: 'University',
+        location: null,
+        startDate: '2020-01-01',
+        endDate: null,
+        isOngoing: true,
+        featured: false,
+        proofUrl: null,
+        images: [],
+        summary: 'Research focus on ML',
+        isCurrent: true,
+      },
+    ]),
     listPublishedByKinds: vi.fn(async () => [awardCard]),
     countPublishedByKinds: vi.fn(async () => 1),
   };
@@ -87,6 +104,7 @@ describe('Public timeline (e2e)', () => {
           useValue: {
             getOrCreateSettings: vi.fn(async () => ({
               achievementsHubIntro: 'Achievements intro',
+              experienceHubIntro: 'Experience intro',
             })),
           },
         },
@@ -142,6 +160,19 @@ describe('Public timeline (e2e)', () => {
     expect(res.body.data.images).toHaveLength(1);
     expect(res.body.data.images[0].alt).toBe('One');
     expect(res.body.data.proofUrl).toBe('https://example.com/proof');
+  });
+
+  it('lists experience with intro, summary, and no href for P10 slug', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/public/timeline/experience')
+      .expect(200);
+
+    expect(res.body.data.intro).toBe('Experience intro');
+    expect(res.body.data.sections[0].kind).toBe('education');
+    const item = res.body.data.sections[0].items[0];
+    expect(item.summary).toBe('Research focus on ML');
+    expect(item.isCurrent).toBe(true);
+    expect(item.href).toBeUndefined();
   });
 
   it('unified list returns paginated items', async () => {

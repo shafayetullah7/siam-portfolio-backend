@@ -340,6 +340,81 @@ describe('TimelineService.listAdmin', () => {
   });
 });
 
+describe('TimelineService.reorderEntries', () => {
+  it('persists sort order for all ids', async () => {
+    const rows = [
+      timelineEntryRow({ id: 'a', sortOrder: 0, kind: 'education' }),
+      timelineEntryRow({ id: 'b', sortOrder: 1, kind: 'education' }),
+    ];
+    const setCalls: { sortOrder: number; id: string }[] = [];
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue(rows),
+        }),
+      }),
+      transaction: vi.fn(async (fn: (tx: unknown) => Promise<void>) => {
+        const tx = {
+          update: vi.fn().mockReturnValue({
+            set: vi.fn().mockImplementation((patch: { sortOrder: number }) => ({
+              where: vi.fn().mockImplementation(async () => {
+                setCalls.push({ sortOrder: patch.sortOrder, id: 'tracked' });
+              }),
+            })),
+          }),
+        };
+        await fn(tx);
+      }),
+    };
+    await timelineService(db).reorderEntries({
+      items: [
+        { id: 'a', sortOrder: 1 },
+        { id: 'b', sortOrder: 0 },
+      ],
+      kinds: ['education'],
+    });
+    expect(db.transaction).toHaveBeenCalled();
+  });
+
+  it('rejects when an id is missing', async () => {
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([
+            timelineEntryRow({ id: 'a', kind: 'education' }),
+          ]),
+        }),
+      }),
+    };
+    await expect(
+      timelineService(db).reorderEntries({
+        items: [
+          { id: 'a', sortOrder: 0 },
+          { id: 'missing', sortOrder: 1 },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rejects kind outside scope', async () => {
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([
+            timelineEntryRow({ id: 'a', kind: 'award' }),
+          ]),
+        }),
+      }),
+    };
+    await expect(
+      timelineService(db).reorderEntries({
+        items: [{ id: 'a', sortOrder: 0 }],
+        kinds: ['education'],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
 describe('TimelineService.findByIdAdmin', () => {
   it('throws when missing', async () => {
     const db = {

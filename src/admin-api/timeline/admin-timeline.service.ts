@@ -15,6 +15,7 @@ import type { TimelineAdminSummary } from './dto/timeline-admin-summary.dto';
 import type { PublishTimelineEntryBody } from './dto/publish-timeline-entry.dto';
 import type { ReplaceTimelineEntryMediaBody } from './dto/replace-timeline-entry-media.dto';
 import type { ScheduleTimelineEntryBody } from './dto/schedule-timeline-entry.dto';
+import type { ReorderTimelineEntriesBody } from './dto/reorder-timeline-entries.dto';
 import type { UpdateTimelineEntryBody } from './dto/update-timeline-entry.dto';
 
 @Injectable()
@@ -201,5 +202,12 @@ export class AdminTimelineService {
     await this.timeline.schedule(id, new Date(body.scheduledAt));
     const entry = await this.timeline.findByIdAdmin(id);
     return await this.mapAdmin(entry);
+  }
+
+  async reorder(body: ReorderTimelineEntriesBody) {
+    await this.timeline.reorderEntries({
+      items: body.items,
+      kinds: body.kinds,
+    });
   }
 }

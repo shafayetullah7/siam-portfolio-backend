@@ -85,6 +85,8 @@ export type TimelinePublicCard = {
   images: TimelinePublicImage[];
   href?: string;
   expiresAt?: string | null;
+  summary?: string | null;
+  isCurrent?: boolean | null;
 };
 
 export type TimelinePublicDetail = TimelinePublicCard & {
@@ -123,7 +125,13 @@ export const LIST_ADMIN_TIMELINE_SORTS = [
   'startDateDesc',
   'updatedAtDesc',
   'titleAsc',
+  'sortOrderAsc',
 ] as const;
+
+export type ReorderTimelineEntriesInput = {
+  items: { id: string; sortOrder: number }[];
+  kinds?: TimelineEntryKind[];
+};
 
 export type ListAdminTimelineSort = (typeof LIST_ADMIN_TIMELINE_SORTS)[number];
 

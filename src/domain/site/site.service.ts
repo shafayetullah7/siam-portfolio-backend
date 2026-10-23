@@ -45,6 +45,7 @@ export class SiteService {
     projectsHubIntro?: string | null;
     writingHubIntro?: string | null;
     achievementsHubIntro?: string | null;
+    experienceHubIntro?: string | null;
     faviconUrl?: string | null;
     faviconMediaId?: string | null;
   }) {
@@ -71,6 +72,10 @@ export class SiteService {
     if (input.achievementsHubIntro !== undefined) {
       const trimmed = input.achievementsHubIntro?.trim() ?? '';
       patch.achievementsHubIntro = trimmed === '' ? null : trimmed;
+    }
+    if (input.experienceHubIntro !== undefined) {
+      const trimmed = input.experienceHubIntro?.trim() ?? '';
+      patch.experienceHubIntro = trimmed === '' ? null : trimmed;
     }
 
     // faviconMediaId wins over manual faviconUrl when both are sent.

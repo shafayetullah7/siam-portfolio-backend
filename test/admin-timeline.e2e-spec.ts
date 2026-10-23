@@ -111,6 +111,7 @@ describe('Admin timeline CRUD (e2e)', () => {
       row.scheduledAt = null;
       return row;
     }),
+    reorderEntries: vi.fn(async () => undefined),
     listAdmin: vi.fn(async (query = {}) => {
       let rows = [...store.values()];
       if (query.kind) {
@@ -319,6 +320,28 @@ describe('Admin timeline CRUD (e2e)', () => {
       .expect(400);
 
     expect(timelineMock.replaceEntryMedia).not.toHaveBeenCalled();
+  });
+
+  it('POST reorder delegates to domain', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/admin/timeline')
+      .send({ kind: 'education', title: 'Degree' })
+      .expect(201);
+
+    const id = createRes.body.data.id;
+
+    await request(app.getHttpServer())
+      .post('/api/v1/admin/timeline/reorder')
+      .send({
+        items: [{ id, sortOrder: 2 }],
+        kinds: ['education'],
+      })
+      .expect(201);
+
+    expect(timelineMock.reorderEntries).toHaveBeenCalledWith({
+      items: [{ id, sortOrder: 2 }],
+      kinds: ['education'],
+    });
   });
 
   it('returns conflict when domain reports duplicate slug', async () => {
