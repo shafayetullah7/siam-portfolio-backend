@@ -4,6 +4,7 @@ import { ProjectsService } from '../../domain/projects/projects.service';
 import { PublicationsService } from '../../domain/publications/publications.service';
 import { ResearchService } from '../../domain/research/research.service';
 import { SiteService } from '../../domain/site/site.service';
+import { TalksService } from '../../domain/talks/talks.service';
 import type { HomeResearchFocusPublic } from '../site/dto/public-home.dto';
 import type { ResearchThemeRow } from '../../domain/research/research.types';
 import type { ResearchThemePublicCard } from './dto/research-theme-public-card.dto';
@@ -20,6 +21,7 @@ export class PublicResearchService {
     private readonly projects: ProjectsService,
     private readonly media: MediaService,
     private readonly site: SiteService,
+    private readonly talks: TalksService,
   ) {}
 
   private async resolveCover(
@@ -88,17 +90,19 @@ export class PublicResearchService {
       this.research.listPublicationIdsForTheme(row.id),
       this.research.listProjectIdsForTheme(row.id),
     ]);
-    const [publicationCards, projectCards] = await Promise.all([
+    const [publicationCards, projectCards, talkCards] = await Promise.all([
       this.publications.listPublishedCardsByIds(publicationIds),
       this.projects.listPublishedCardsByIds(projectIds),
+      this.talks.listPublishedRelatedCardsForTheme(row.id),
     ]);
     const related =
       publicationCards.length > 0 ||
-      projectCards.length > 0
+      projectCards.length > 0 ||
+      talkCards.length > 0
         ? {
             publications: publicationCards,
             projects: projectCards,
-            talks: [] as [],
+            talks: talkCards,
           }
         : undefined;
     return {

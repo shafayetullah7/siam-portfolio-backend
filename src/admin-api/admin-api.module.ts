@@ -10,6 +10,10 @@ import { AdminPublicationsModule } from './publications/admin-publications.modul
 import { AdminResearchModule } from './research/admin-research.module';
 import { AdminSitePagesModule } from './site-pages/admin-site-pages.module';
 import { AdminMessagesModule } from './messages/admin-messages.module';
+import { AdminAcademicServiceModule } from './academic-service/admin-academic-service.module';
+import { AdminCollaborationsModule } from './collaborations/admin-collaborations.module';
+import { AdminTalksModule } from './talks/admin-talks.module';
+import { AdminProfileHomeModule } from './profile-home/admin-profile-home.module';
 
 @Module({
   imports: [
@@ -24,6 +28,10 @@ import { AdminMessagesModule } from './messages/admin-messages.module';
     AdminDashboardModule,
     AdminMediaModule,
     AdminMessagesModule,
+    AdminTalksModule,
+    AdminCollaborationsModule,
+    AdminAcademicServiceModule,
+    AdminProfileHomeModule,
   ],
 })
 export class AdminApiModule {}

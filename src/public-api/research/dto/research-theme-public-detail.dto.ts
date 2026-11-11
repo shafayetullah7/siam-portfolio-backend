@@ -49,10 +49,24 @@ const projectCardSchema = z.object({
   href: z.string(),
 });
 
+const talkRelatedCardSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  eventName: z.string(),
+  startsAt: z.string(),
+  talkType: z.enum([
+    'invited_talk',
+    'conference_talk',
+    'poster',
+    'workshop',
+    'other',
+  ]),
+});
+
 const publicRelatedSchema = z.object({
   publications: z.array(publicationCardSchema),
   projects: z.array(projectCardSchema),
-  talks: z.array(z.object({ slug: z.string() })),
+  talks: z.array(talkRelatedCardSchema),
 });
 
 export const researchThemePublicDetailSchema = z

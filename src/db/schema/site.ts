@@ -20,6 +20,11 @@ export const siteSettings = pgTable('site_settings', {
   researchHubIntro: text('research_hub_intro'),
   projectsHubIntro: text('projects_hub_intro'),
   writingHubIntro: text('writing_hub_intro'),
+  talksHubIntro: text('talks_hub_intro'),
+  collaborationsPageIntro: text('collaborations_page_intro'),
+  collaborationsPageEnabled: boolean('collaborations_page_enabled')
+    .notNull()
+    .default(false),
   achievementsHubIntro: text('achievements_hub_intro'),
   experienceHubIntro: text('experience_hub_intro'),
   contactFormEnabled: boolean('contact_form_enabled').notNull().default(true),

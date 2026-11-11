@@ -8,6 +8,8 @@ import { PublicWritingModule } from './writing/public-writing.module';
 import { PublicResearchModule } from './research/public-research.module';
 import { PublicSitePagesModule } from './site-pages/public-site-pages.module';
 import { PublicContactModule } from './contact/public-contact.module';
+import { PublicCollaborationsPageModule } from './collaborations/public-collaborations-page.module';
+import { PublicTalksModule } from './talks/public-talks.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { PublicContactModule } from './contact/public-contact.module';
     PublicPublicationsModule,
     PublicProjectsModule,
     PublicWritingModule,
+    PublicTalksModule,
+    PublicCollaborationsPageModule,
     PublicTimelineModule,
     PublicSitePagesModule,
     PublicSiteModule,

@@ -34,6 +34,7 @@ import {
   snapshotToResearchThemePatch,
   type ResearchThemeRevisionSnapshot,
 } from './research-revision.snapshot';
+import { FEATURED_ON_HOME_CAPS } from '../profile-home/featured-on-home.constants';
 import type {
   CreateResearchThemeInput,
   ListAdminResearchQuery,
@@ -47,8 +48,6 @@ import type {
 const MAX_THEME_RESOURCES = 20;
 const MAX_THEME_PUBLICATIONS = 20;
 const MAX_THEME_PROJECTS = 20;
-const MAX_FEATURED_ON_HOME = 6;
-
 @Injectable()
 export class ResearchService {
   constructor(
@@ -291,15 +290,15 @@ export class ResearchService {
   ): Promise<void> {
     if (!enabling) return;
     const count = await this.countFeaturedOnHome(excludeThemeId);
-    if (count >= MAX_FEATURED_ON_HOME) {
+    if (count >= FEATURED_ON_HOME_CAPS.research) {
       throw new BadRequestException(
-        `At most ${MAX_FEATURED_ON_HOME} themes can be featured on the home page`,
+        `At most ${FEATURED_ON_HOME_CAPS.research} themes can be featured on the home page`,
       );
     }
   }
 
   async listPublishedFeaturedForHome(
-    limit = MAX_FEATURED_ON_HOME,
+    limit = FEATURED_ON_HOME_CAPS.research,
   ): Promise<ResearchThemeRow[]> {
     const published = await this.listPublished();
     return published.filter((row) => row.featuredOnHome).slice(0, limit);

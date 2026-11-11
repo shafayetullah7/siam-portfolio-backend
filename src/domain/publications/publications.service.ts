@@ -11,6 +11,7 @@ import {
   count,
   desc,
   eq,
+  ne,
   ilike,
   inArray,
   lte,
@@ -27,6 +28,7 @@ import { publicationAuthors } from '../../db/schema/publication-authors';
 import { publicationSupplements } from '../../db/schema/publication-supplements';
 import { publications } from '../../db/schema/publications';
 import { MediaService } from '../media/media.service';
+import { FEATURED_ON_HOME_CAPS } from '../profile-home/featured-on-home.constants';
 import { availabilityForPublication } from './publication-availability';
 import { normalizeSupplementInputs } from './publication-supplements';
 import {
@@ -351,6 +353,31 @@ export class PublicationsService {
     return this.formatCitation(row, authorRows);
   }
 
+  async countFeaturedOnHome(excludePublicationId?: string): Promise<number> {
+    const conditions = [eq(publications.featuredOnHome, true)];
+    if (excludePublicationId) {
+      conditions.push(ne(publications.id, excludePublicationId));
+    }
+    const rows = await this.db
+      .select({ id: publications.id })
+      .from(publications)
+      .where(and(...conditions));
+    return rows.length;
+  }
+
+  async assertFeaturedOnHomeQuota(
+    excludePublicationId: string | undefined,
+    enabling: boolean,
+  ): Promise<void> {
+    if (!enabling) return;
+    const count = await this.countFeaturedOnHome(excludePublicationId);
+    if (count >= FEATURED_ON_HOME_CAPS.publications) {
+      throw new BadRequestException(
+        `At most ${FEATURED_ON_HOME_CAPS.publications} publications can be featured on the home page`,
+      );
+    }
+  }
+
   async create(input: CreatePublicationInput): Promise<PublicationRow> {
     const normalized = normalizeAuthorInputs(input.authors);
     const authorsShort = formatAuthorsShort(normalized);
@@ -360,6 +387,9 @@ export class PublicationsService {
       input.pdfMediaId,
       pdfRightsGranted,
     );
+    if (input.featuredOnHome) {
+      await this.assertFeaturedOnHomeQuota(undefined, true);
+    }
     try {
       const row = await this.db.transaction(async (tx) => {
         const [inserted] = await tx
@@ -510,6 +540,10 @@ export class PublicationsService {
       input.supplements !== undefined
         ? normalizeSupplementInputs(input.supplements)
         : undefined;
+
+    if (input.featuredOnHome === true) {
+      await this.assertFeaturedOnHomeQuota(id, true);
+    }
 
     try {
       const row = await this.db.transaction(async (tx) => {
@@ -850,7 +884,7 @@ export class PublicationsService {
   }
 
   async listPublishedFeaturedForHome(
-    limit = 4,
+    limit = FEATURED_ON_HOME_CAPS.publications,
     now = new Date(),
   ): Promise<PublicationRow[]> {
     const published = await this.listPublished(now);

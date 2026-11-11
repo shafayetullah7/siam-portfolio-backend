@@ -17,5 +17,6 @@ import { PublicSiteService } from './public-site.service';
   ],
   controllers: [PublicSiteController],
   providers: [PublicSiteService],
+  exports: [PublicSiteService],
 })
 export class PublicSiteModule {}

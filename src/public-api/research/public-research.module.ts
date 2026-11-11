@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MediaModule } from '../../domain/media/media.module';
+import { TalksModule } from '../../domain/talks/talks.module';
 import { ProjectsModule } from '../../domain/projects/projects.module';
 import { PublicationsModule } from '../../domain/publications/publications.module';
 import { ResearchModule } from '../../domain/research/research.module';
@@ -12,6 +13,7 @@ import { PublicResearchService } from './public-research.service';
     ResearchModule,
     PublicationsModule,
     ProjectsModule,
+    TalksModule,
     MediaModule,
     SiteModule,
   ],

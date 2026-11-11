@@ -16,4 +16,5 @@ export * from './research';
 export * from './site';
 export * from './site-pages';
 export * from './timeline';
+export * from './talks';
 export * from './writing';

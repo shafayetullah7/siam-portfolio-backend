@@ -602,6 +602,25 @@ describe('PublicationsService.toPublicDetail', () => {
   });
 });
 
+describe('PublicationsService.featuredOnHome quota', () => {
+  it('rejects enabling featured when four others already featured', async () => {
+    const featuredRows = Array.from({ length: 4 }, (_, i) => ({
+      id: `pub-${i}`,
+    }));
+    const db = {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue(featuredRows),
+        }),
+      }),
+    };
+    const service = new PublicationsService(db as never, {} as never);
+    await expect(
+      service.assertFeaturedOnHomeQuota('new-pub', true),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
 describe('PublicationsService.listPublishedFeaturedForHome', () => {
   it('returns only published rows flagged featuredOnHome up to limit', async () => {
     const rows = [

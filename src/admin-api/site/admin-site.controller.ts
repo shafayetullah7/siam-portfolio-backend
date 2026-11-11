@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdminAuthGuard } from '../../common/guards/admin-auth.guard';
 import { AdminSiteService } from './admin-site.service';
 import {
@@ -36,11 +36,19 @@ export class AdminSiteController {
   }
 
   @Patch('profile')
+  @ApiOperation({
+    deprecated: true,
+    summary: 'Deprecated — use PATCH /admin/profile',
+  })
   async patchProfile(@Body() body: Record<string, unknown>) {
     return await this.adminSite.updateProfile(body);
   }
 
   @Patch('homepage')
+  @ApiOperation({
+    deprecated: true,
+    summary: 'Deprecated — use PATCH /admin/home',
+  })
   async patchHomepage(@Body() body: Record<string, unknown>) {
     return await this.adminSite.updateHomepage(body);
   }

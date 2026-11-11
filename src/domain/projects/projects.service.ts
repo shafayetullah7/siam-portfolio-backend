@@ -46,6 +46,7 @@ import {
 } from './project-child-inputs';
 import { MediaService } from '../media/media.service';
 import { PublicationsService } from '../publications/publications.service';
+import { FEATURED_ON_HOME_CAPS } from '../profile-home/featured-on-home.constants';
 import { projectPublishChecklist } from './project-publish-checklist';
 import { assertPublishable as assertPublishableRules } from './project-publish.rules';
 import type {
@@ -69,7 +70,6 @@ import type {
 const DEFAULT_LIST_LIMIT = 50;
 const DEFAULT_PUBLIC_LIST_LIMIT = 24;
 const MAX_LIST_LIMIT = 100;
-const MAX_FEATURED_ON_HOME = 3;
 const MAX_PROJECT_PUBLICATIONS = 20;
 
 function projectVisibleSql(now: Date): SQL {
@@ -570,9 +570,9 @@ export class ProjectsService {
   ): Promise<void> {
     if (!enabling) return;
     const count = await this.countFeaturedOnHome(excludeProjectId);
-    if (count >= MAX_FEATURED_ON_HOME) {
+    if (count >= FEATURED_ON_HOME_CAPS.projects) {
       throw new BadRequestException(
-        `At most ${MAX_FEATURED_ON_HOME} projects can be featured on the home page`,
+        `At most ${FEATURED_ON_HOME_CAPS.projects} projects can be featured on the home page`,
       );
     }
   }
@@ -634,7 +634,7 @@ export class ProjectsService {
   }
 
   async listPublishedFeaturedForHome(
-    limit = MAX_FEATURED_ON_HOME,
+    limit = FEATURED_ON_HOME_CAPS.projects,
     now = new Date(),
   ): Promise<ProjectRow[]> {
     const published = await this.listPublished(now);

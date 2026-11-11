@@ -7,6 +7,7 @@ import { projects } from '../../db/schema/projects';
 import { sitePages } from '../../db/schema/site-pages';
 import { media } from '../../db/schema/media';
 import { timelineEntries } from '../../db/schema/timeline/timeline-entries';
+import { talks } from '../../db/schema/talks/talks';
 import { articles } from '../../db/schema/writing/articles';
 import { ContactRepository } from '../contact/contact.repository';
 import { SiteService } from '../site/site.service';
@@ -92,6 +93,23 @@ export class DashboardService {
     );
     const timelineCountBy = (status: string) =>
       timelineCounts.find((c) => c.status === status)?.total ?? 0;
+    const talkStatuses = [
+      'draft',
+      'published',
+      'scheduled',
+      'archived',
+    ] as const;
+    const talkCounts = await Promise.all(
+      talkStatuses.map(async (status) => {
+        const [row] = await this.db
+          .select({ total: count() })
+          .from(talks)
+          .where(eq(talks.publishStatus, status));
+        return { status, total: Number(row?.total ?? 0) };
+      }),
+    );
+    const talkCountBy = (status: string) =>
+      talkCounts.find((c) => c.status === status)?.total ?? 0;
     const inboxCounts = await this.contactRepository.countInboxDashboard();
     const settings = await this.siteService.getOrCreateSettings();
     return {
@@ -124,6 +142,12 @@ export class DashboardService {
         published: timelineCountBy('published'),
         scheduled: timelineCountBy('scheduled'),
         archived: timelineCountBy('archived'),
+      },
+      talks: {
+        draft: talkCountBy('draft'),
+        published: talkCountBy('published'),
+        scheduled: talkCountBy('scheduled'),
+        archived: talkCountBy('archived'),
       },
       media: mediaRows.length,
       inbox: {

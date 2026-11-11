@@ -13,6 +13,7 @@ import { publicationRow } from '../src/domain/publications/publications.service.
 import type { PublicationRow } from '../src/domain/publications/publications.types';
 import { ResearchService } from '../src/domain/research/research.service';
 import { SiteService } from '../src/domain/site/site.service';
+import { TalksService } from '../src/domain/talks/talks.service';
 import type { ResearchThemeRow } from '../src/domain/research/research.types';
 
 const COVER_MEDIA_ID = '00000000-0000-4000-8000-000000000099';
@@ -232,6 +233,23 @@ describe('Public research themes (e2e)', () => {
     })),
   };
 
+  const talksMock: Partial<TalksService> = {
+    listPublishedRelatedCardsForTheme: vi.fn(async (themeId: string) => {
+      if (themeId !== '00000000-0000-4000-8000-000000000001') {
+        return [];
+      }
+      return [
+        {
+          slug: 'linked-talk',
+          title: 'Linked Talk',
+          eventName: 'ML Summit',
+          startsAt: '2026-01-15T10:00:00.000Z',
+          talkType: 'conference_talk',
+        },
+      ];
+    }),
+  };
+
   const mediaMock: Partial<MediaService> = {
     findById: vi.fn(async (id: string) => {
       if (id !== COVER_MEDIA_ID) {
@@ -326,6 +344,8 @@ describe('Public research themes (e2e)', () => {
       .useValue(mediaMock)
       .overrideProvider(SiteService)
       .useValue(siteMock)
+      .overrideProvider(TalksService)
+      .useValue(talksMock)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -401,6 +421,15 @@ describe('Public research themes (e2e)', () => {
         venue: 'NeurIPS',
         publicationType: 'conference',
         href: '/publications/linked-paper',
+      },
+    ]);
+    expect(res.body.data.related?.talks).toEqual([
+      {
+        slug: 'linked-talk',
+        title: 'Linked Talk',
+        eventName: 'ML Summit',
+        startsAt: '2026-01-15T10:00:00.000Z',
+        talkType: 'conference_talk',
       },
     ]);
     expect(res.body.data.prevSlug).toBe('first-theme');

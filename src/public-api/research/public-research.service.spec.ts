@@ -52,12 +52,16 @@ describe('PublicResearchService.previewById', () => {
     const site = {
       getOrCreateSettings: vi.fn().mockResolvedValue({ researchHubIntro: null }),
     };
+    const talks = {
+      listPublishedRelatedCardsForTheme: vi.fn().mockResolvedValue([]),
+    };
     const service = new PublicResearchService(
       research as never,
       publications as never,
       projects as never,
       media as never,
       site as never,
+      talks as never,
     );
 
     const detail = await service.previewById('theme-1');
@@ -103,12 +107,16 @@ describe('PublicResearchService.listHub', () => {
         researchHubIntro: 'Intro text',
       }),
     };
+    const talks = {
+      listPublishedRelatedCardsForTheme: vi.fn().mockResolvedValue([]),
+    };
     const service = new PublicResearchService(
       research as never,
       publications as never,
       projects as never,
       media as never,
       site as never,
+      talks as never,
     );
     const hub = await service.listHub();
     expect(hub.intro).toBe('Intro text');
@@ -172,16 +180,147 @@ describe('PublicResearchService.getBySlug', () => {
     const site = {
       getOrCreateSettings: vi.fn().mockResolvedValue({ researchHubIntro: null }),
     };
+    const talks = {
+      listPublishedRelatedCardsForTheme: vi.fn().mockResolvedValue([]),
+    };
     const service = new PublicResearchService(
       research as never,
       publications as never,
       projects as never,
       media as never,
       site as never,
+      talks as never,
     );
 
     const detail = await service.getBySlug('middle');
     expect(detail.prevSlug).toBe('first');
     expect(detail.nextSlug).toBe('last');
+  });
+});
+
+describe('PublicResearchService.getBySlug related talks', () => {
+  it('includes published talk cards from TalksService', async () => {
+    const row = {
+      id: 'theme-1',
+      slug: 'ml-theme',
+      title: 'ML Theme',
+      summary: 'Summary',
+      themeStatus: 'ongoing' as const,
+      problem: 'Problem',
+      significance: null,
+      objectives: null,
+      approach: null,
+      findings: null,
+      limitations: null,
+      futureWork: null,
+      tags: null,
+      linkLabel: null,
+      coverMediaId: null,
+      sortOrder: 0,
+      featuredOnHome: false,
+      publishStatus: 'published' as const,
+      publishedAt: new Date(),
+      scheduledAt: null,
+      archivedAt: null,
+      seoTitle: null,
+      seoDescription: null,
+      collaborators: null,
+      acknowledgments: null,
+      funding: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const research = {
+      findPublishedBySlug: vi.fn().mockResolvedValue(row),
+      listResources: vi.fn().mockResolvedValue([]),
+      listPublicationIdsForTheme: vi.fn().mockResolvedValue([]),
+      listProjectIdsForTheme: vi.fn().mockResolvedValue([]),
+      adjacentPublishedSlugs: vi.fn().mockResolvedValue({}),
+    };
+    const publications = {
+      listPublishedCardsByIds: vi.fn().mockResolvedValue([]),
+    };
+    const projects = {
+      listPublishedCardsByIds: vi.fn().mockResolvedValue([]),
+    };
+    const talkCard = {
+      slug: 'keynote',
+      title: 'Keynote',
+      eventName: 'Summit',
+      startsAt: '2026-05-01T10:00:00.000Z',
+      talkType: 'invited_talk' as const,
+    };
+    const talks = {
+      listPublishedRelatedCardsForTheme: vi
+        .fn()
+        .mockResolvedValue([talkCard]),
+    };
+    const service = new PublicResearchService(
+      research as never,
+      publications as never,
+      projects as never,
+      { findById: vi.fn() } as never,
+      { getOrCreateSettings: vi.fn() } as never,
+      talks as never,
+    );
+
+    const detail = await service.getBySlug('ml-theme');
+    expect(detail.related?.talks).toEqual([talkCard]);
+    expect(talks.listPublishedRelatedCardsForTheme).toHaveBeenCalledWith(
+      'theme-1',
+    );
+  });
+
+  it('omits related block when no linked content', async () => {
+    const row = {
+      id: 'theme-2',
+      slug: 'empty',
+      title: 'Empty',
+      summary: 'Summary',
+      themeStatus: 'ongoing' as const,
+      problem: 'Problem',
+      significance: null,
+      objectives: null,
+      approach: null,
+      findings: null,
+      limitations: null,
+      futureWork: null,
+      tags: null,
+      linkLabel: null,
+      coverMediaId: null,
+      sortOrder: 0,
+      featuredOnHome: false,
+      publishStatus: 'published' as const,
+      publishedAt: new Date(),
+      scheduledAt: null,
+      archivedAt: null,
+      seoTitle: null,
+      seoDescription: null,
+      collaborators: null,
+      acknowledgments: null,
+      funding: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const research = {
+      findPublishedBySlug: vi.fn().mockResolvedValue(row),
+      listResources: vi.fn().mockResolvedValue([]),
+      listPublicationIdsForTheme: vi.fn().mockResolvedValue([]),
+      listProjectIdsForTheme: vi.fn().mockResolvedValue([]),
+      adjacentPublishedSlugs: vi.fn().mockResolvedValue({}),
+    };
+    const talks = {
+      listPublishedRelatedCardsForTheme: vi.fn().mockResolvedValue([]),
+    };
+    const service = new PublicResearchService(
+      research as never,
+      { listPublishedCardsByIds: vi.fn().mockResolvedValue([]) } as never,
+      { listPublishedCardsByIds: vi.fn().mockResolvedValue([]) } as never,
+      { findById: vi.fn() } as never,
+      { getOrCreateSettings: vi.fn() } as never,
+      talks as never,
+    );
+    const detail = await service.getBySlug('empty');
+    expect(detail.related).toBeUndefined();
   });
 });

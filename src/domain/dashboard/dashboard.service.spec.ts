@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { timelineEntries } from '../../db/schema/timeline/timeline-entries';
+import { talks } from '../../db/schema/talks/talks';
 import { articles } from '../../db/schema/writing/articles';
 import { projects } from '../../db/schema/projects';
 import { publications } from '../../db/schema/publications';
@@ -16,11 +17,18 @@ function createDbMock() {
   };
   let writingQuery = 0;
   let timelineQuery = 0;
+  let talksQuery = 0;
   const timelineByStatus: Record<string, number> = {
     draft: 1,
     published: 3,
     scheduled: 0,
     archived: 1,
+  };
+  const talksByStatus: Record<string, number> = {
+    draft: 1,
+    published: 3,
+    scheduled: 0,
+    archived: 0,
   };
 
   return {
@@ -59,6 +67,17 @@ function createDbMock() {
             ]),
           };
         }
+        if (table === talks) {
+          talksQuery += 1;
+          const status = ['draft', 'published', 'scheduled', 'archived'][
+            talksQuery - 1
+          ] as string;
+          return {
+            where: vi.fn().mockResolvedValue([
+              { total: talksByStatus[status] },
+            ]),
+          };
+        }
         return Promise.resolve([]);
       }),
     })),
@@ -89,6 +108,12 @@ describe('DashboardService.getCounts', () => {
       published: 3,
       scheduled: 0,
       archived: 1,
+    });
+    expect(counts.talks).toEqual({
+      draft: 1,
+      published: 3,
+      scheduled: 0,
+      archived: 0,
     });
   });
 

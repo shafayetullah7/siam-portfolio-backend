@@ -15,6 +15,9 @@ import { PublicationsService } from '../publications/publications.service';
 import { ResearchService } from '../research/research.service';
 import { SitePagesService } from '../site-pages/site-pages.service';
 import { TimelineService } from '../timeline/timeline.service';
+import { AcademicServiceService } from '../talks/academic-service.service';
+import { CollaborationsService } from '../talks/collaborations.service';
+import { TalksService } from '../talks/talks.service';
 import { toPublicContactConfig } from '../contact/contact-config.mapper';
 import { normalizeContactCategories } from './normalize-contact-categories';
 
@@ -29,6 +32,9 @@ export class SiteService {
     private readonly projects: ProjectsService,
     private readonly writing: WritingService,
     private readonly timeline: TimelineService,
+    private readonly talks: TalksService,
+    private readonly collaborations: CollaborationsService,
+    private readonly academicService: AcademicServiceService,
   ) {}
 
   async getContactConfig() {
@@ -53,6 +59,9 @@ export class SiteService {
     researchHubIntro?: string | null;
     projectsHubIntro?: string | null;
     writingHubIntro?: string | null;
+    talksHubIntro?: string | null;
+    collaborationsPageIntro?: string | null;
+    collaborationsPageEnabled?: boolean;
     achievementsHubIntro?: string | null;
     experienceHubIntro?: string | null;
     contactFormEnabled?: boolean;
@@ -86,6 +95,17 @@ export class SiteService {
     if (input.writingHubIntro !== undefined) {
       const trimmed = input.writingHubIntro?.trim() ?? '';
       patch.writingHubIntro = trimmed === '' ? null : trimmed;
+    }
+    if (input.talksHubIntro !== undefined) {
+      const trimmed = input.talksHubIntro?.trim() ?? '';
+      patch.talksHubIntro = trimmed === '' ? null : trimmed;
+    }
+    if (input.collaborationsPageIntro !== undefined) {
+      const trimmed = input.collaborationsPageIntro?.trim() ?? '';
+      patch.collaborationsPageIntro = trimmed === '' ? null : trimmed;
+    }
+    if (input.collaborationsPageEnabled !== undefined) {
+      patch.collaborationsPageEnabled = input.collaborationsPageEnabled;
     }
     if (input.achievementsHubIntro !== undefined) {
       const trimmed = input.achievementsHubIntro?.trim() ?? '';
@@ -216,6 +236,9 @@ export class SiteService {
       projectSlugs,
       writingSlugs,
       achievementSlugs,
+      talkSlugs,
+      collabCount,
+      serviceCount,
     ] = await Promise.all([
       this.sitePages.listPublishedSlugs(),
       this.research.listPublishedSlugs(),
@@ -223,6 +246,9 @@ export class SiteService {
       this.projects.listPublishedSlugs(),
       this.writing.listPublishedSlugs(),
       this.timeline.listPublishedAchievementSlugs(),
+      this.talks.listPublishedSlugs(),
+      this.collaborations.countPublished(),
+      this.academicService.countPublished(),
     ]);
     const researchPaths = [
       '/research',
@@ -247,6 +273,15 @@ export class SiteService {
             ...achievementSlugs.map((s) => `/achievements/${s}`),
           ]
         : [];
+    const talkPaths =
+      talkSlugs.length > 0
+        ? ['/talks', ...talkSlugs.map((s) => `/talks/${s}`)]
+        : [];
+    const collaborationsPaths =
+      settings.collaborationsPageEnabled &&
+      collabCount + serviceCount > 0
+        ? ['/collaborations']
+        : [];
     return {
       siteName: settings.siteName,
       defaultMetaDescription: settings.defaultMetaDescription,
@@ -259,6 +294,8 @@ export class SiteService {
         ...projectPaths,
         ...writingPaths,
         ...achievementPaths,
+        ...talkPaths,
+        ...collaborationsPaths,
         '/',
         '/about',
         '/contact',

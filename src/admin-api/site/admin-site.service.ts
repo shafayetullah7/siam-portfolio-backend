@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { ProfileHomeService } from '../../domain/profile-home/profile-home.service';
+import { AdminProfileHomeService } from '../profile-home/admin-profile-home.service';
 import { SiteService } from '../../domain/site/site.service';
 
 @Injectable()
 export class AdminSiteService {
   constructor(
     private readonly site: SiteService,
-    private readonly profileHome: ProfileHomeService,
+    private readonly profileHome: AdminProfileHomeService,
   ) {}
 
   getSettings() {
@@ -26,10 +26,10 @@ export class AdminSiteService {
   }
 
   updateProfile(body: Record<string, unknown>) {
-    return this.profileHome.updateProfile(body as never);
+    return this.profileHome.updateProfileLoose(body);
   }
 
   updateHomepage(body: Record<string, unknown>) {
-    return this.profileHome.updateHomepage(body as never);
+    return this.profileHome.updateHomepageLoose(body);
   }
 }
